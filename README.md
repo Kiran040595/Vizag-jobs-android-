@@ -1,1 +1,53 @@
-# Vizag-jobs-android-
+# Vizag Jobs — Android app (React Native / Expo)
+
+A React Native (Expo) Android app for **Jobs in Vizag** — a job portal for
+Visakhapatnam. It is a mobile replica of the web app
+([Kiran040595/vizag-jobs](https://github.com/Kiran040595/vizag-jobs),
+`jobsinvizag.in`), reusing the same Supabase `jobs` data model and filtering
+logic.
+
+## Features (v1 — job-seeker experience)
+
+- Browse the latest job openings in Visakhapatnam
+- Search by title, company, skills, or location
+- Filter by category (IT, engineering branches, banking, BPO, sales, HR,
+  healthcare, education, hospitality, logistics, fresher, walk-in, …) and job type
+- Job detail screen with full description and one-tap **Apply**
+- Save jobs locally and revisit them on the **Saved Jobs** screen
+- Live stats (active jobs, companies hiring, new this week, categories)
+
+Data comes from Supabase when credentials are configured, otherwise the app
+falls back to bundled **sample Vizag jobs** so it runs with zero setup.
+
+## Getting started
+
+```bash
+npm install
+npm run web        # run in the browser (react-native-web)
+npm run android    # run on an Android emulator/device (needs Android SDK)
+npm start          # Expo dev server (scan QR with Expo Go)
+```
+
+### Supabase (optional, for live data)
+
+Copy `.env.example` to `.env` and fill in your project's values (the same as the
+web app's `VITE_SUPABASE_*`):
+
+```
+EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+```
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run web` / `android` / `ios` | Start the app on a target platform |
+| `npm run lint` | ESLint (expo config) |
+| `npm run typecheck` | TypeScript (`tsc --noEmit`) |
+| `npm test` | Jest unit tests (filter/pagination logic) |
+
+## Tech stack
+
+Expo SDK 57 · React Native 0.86 · React 19 · TypeScript · React Navigation ·
+`@supabase/supabase-js` · AsyncStorage.
