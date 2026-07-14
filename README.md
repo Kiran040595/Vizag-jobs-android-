@@ -21,11 +21,32 @@ falls back to bundled **sample Vizag jobs** so it runs with zero setup.
 
 ## Getting started
 
+### Quick start (one command)
+
+```bash
+npm run setup      # installs deps, Android SDK packages, and runs expo prebuild
+source scripts/env.sh
+npm run web        # preview in browser (no device needed)
+```
+
+### Manual setup
+
+**Prerequisites:** Node 22+, JDK 21, Android SDK (API 36, build-tools 36, NDK 27).
+
 ```bash
 npm install
+bash scripts/setup-android-sdk.sh   # installs Android SDK if missing
+source scripts/env.sh               # sets JAVA_HOME and ANDROID_HOME
+npm run prebuild:android            # generates the android/ folder
+```
+
+### Running the app
+
+```bash
 npm run web        # run in the browser (react-native-web)
-npm run android    # run on an Android emulator/device (needs Android SDK)
-npm start          # Expo dev server (scan QR with Expo Go)
+npm run android    # build & install on a connected Android device/emulator
+npm start          # Expo dev server (scan QR with Expo Go on a phone)
+npm run build:apk  # build a debug APK (output in android/app/build/outputs/apk/debug/)
 ```
 
 ### Supabase (optional, for live data)
@@ -42,7 +63,10 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 
 | Command | Description |
 | --- | --- |
+| `npm run setup` | Full environment bootstrap (deps + SDK + prebuild) |
 | `npm run web` / `android` / `ios` | Start the app on a target platform |
+| `npm run prebuild:android` | Generate native `android/` project from Expo config |
+| `npm run build:apk` | Build a debug APK with Gradle |
 | `npm run lint` | ESLint (expo config) |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
 | `npm test` | Jest unit tests (filter/pagination logic) |
