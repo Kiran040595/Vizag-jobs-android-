@@ -5,11 +5,10 @@
  * falls back to bundled sample data (see services/jobs.ts), so it runs fully
  * offline until real Supabase credentials are provided.
  *
- * Set these in a `.env` file (see `.env.example`):
- *   EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
- *   EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+ * Auth sessions persist via AsyncStorage so students stay signed in.
  */
 import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -20,8 +19,10 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(supabaseUrl as string, supabaseAnonKey as string, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+        storage: AsyncStorage,
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
       },
     })
   : null;

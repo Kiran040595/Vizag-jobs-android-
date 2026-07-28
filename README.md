@@ -13,11 +13,20 @@ logic.
 - Filter by category (IT, engineering branches, banking, BPO, sales, HR,
   healthcare, education, hospitality, logistics, fresher, walk-in, …) and job type
 - Job detail screen with full description and one-tap **Apply**
-- Save jobs locally and revisit them on the **Saved Jobs** screen
+- Save jobs locally and revisit them on the **Saved** tab
 - Live stats (active jobs, companies hiring, new this week, categories)
+
+## Features (v2 — student account)
+
+- Student sign-in / registration (same Supabase auth + `student_profiles` as the web app)
+- Complete profile (education, skills, career preferences, consents)
+- On-platform **Apply** for internal jobs, with cover note
+- **Applied jobs** status tracking (`job_applications`)
+- Bottom tabs: Jobs · Saved · Account
 
 Data comes from Supabase when credentials are configured, otherwise the app
 falls back to bundled **sample Vizag jobs** so it runs with zero setup.
+Auth/apply flows require live Supabase credentials.
 
 ## Getting started
 

@@ -1,15 +1,19 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../theme';
 import type { Job } from '../types';
-import type { RootStackParamList } from '../navigation/types';
+import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { getSavedJobs, toggleSavedJob } from '../lib/savedJobs';
 import JobCard from '../components/JobCard';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'SavedJobs'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Saved'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 export default function SavedJobsScreen({ navigation }: Props) {
   const [jobs, setJobs] = useState<Job[]>([]);

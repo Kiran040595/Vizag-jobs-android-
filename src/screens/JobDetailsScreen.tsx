@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, Linking } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, radius, spacing } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 import { formatRelativePostedAt } from '../lib/freshness';
 import { isJobSaved, toggleSavedJob } from '../lib/savedJobs';
+import { applyButtonLabel, isInternalApplyJob, jobSupportsApply } from '../lib/jobApplyMode';
+import { useStudentAuth } from '../context/StudentAuthContext';
+import { fetchMyApplicationForJob } from '../services/jobApplications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JobDetails'>;
 
@@ -30,13 +33,39 @@ const Section = ({ title, body }: { title: string; body?: string | null }) => {
   );
 };
 
-export default function JobDetailsScreen({ route }: Props) {
+export default function JobDetailsScreen({ navigation, route }: Props) {
   const { job } = route.params;
+  const { isLoading, isStudent, profileComplete, session } = useStudentAuth();
   const [saved, setSaved] = useState(false);
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
 
   useEffect(() => {
     isJobSaved(job.id).then(setSaved);
   }, [job.id]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!session || !isStudent) {
+      queueMicrotask(() => {
+        if (active) setAlreadyApplied(false);
+      });
+      return () => {
+        active = false;
+      };
+    }
+
+    fetchMyApplicationForJob(job.id)
+      .then((application) => {
+        if (active) setAlreadyApplied(Boolean(application));
+      })
+      .catch(() => {
+        if (active) setAlreadyApplied(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [job.id, session, isStudent]);
 
   const onToggle = async () => {
     const nowSaved = await toggleSavedJob(job);
@@ -44,9 +73,43 @@ export default function JobDetailsScreen({ route }: Props) {
   };
 
   const onApply = () => {
-    const url = job.applyLink || 'https://jobsinvizag.in';
-    Linking.openURL(url);
+    if (!jobSupportsApply(job)) {
+      Alert.alert('Apply unavailable', 'This listing does not have an apply path yet.');
+      return;
+    }
+
+    if (alreadyApplied) return;
+
+    if (session && isStudent && profileComplete) {
+      if (isInternalApplyJob(job)) {
+        navigation.navigate('StudentApply', { jobId: job.id, job });
+        return;
+      }
+      if (job.applyLink) {
+        void Linking.openURL(job.applyLink);
+      }
+      return;
+    }
+
+    if (session && isStudent && !profileComplete) {
+      navigation.navigate('StudentProfile');
+      return;
+    }
+
+    if (isInternalApplyJob(job)) {
+      navigation.navigate('StudentLogin', { applyJobId: job.id });
+      return;
+    }
+
+    // External apply: guests can open the link; signed-in students without
+    // profile are nudged to complete profile first above.
+    if (job.applyLink) {
+      void Linking.openURL(job.applyLink);
+    }
   };
+
+  const canApply = jobSupportsApply(job);
+  const label = alreadyApplied ? 'Applied' : applyButtonLabel(job);
 
   return (
     <View style={styles.container}>
@@ -99,10 +162,20 @@ export default function JobDetailsScreen({ route }: Props) {
             color={saved ? colors.primary : colors.textMuted}
           />
         </Pressable>
-        <Pressable onPress={onApply} style={styles.applyBtn} accessibilityRole="button" accessibilityLabel="Apply now">
-          <Text style={styles.applyText}>Apply Now</Text>
-          <Ionicons name="open-outline" size={18} color={colors.white} />
-        </Pressable>
+        {canApply ? (
+          <Pressable
+            onPress={onApply}
+            style={[styles.applyBtn, alreadyApplied && styles.applyBtnDone]}
+            disabled={isLoading || alreadyApplied}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+          >
+            <Text style={styles.applyText}>{label}</Text>
+            {!alreadyApplied && !isInternalApplyJob(job) ? (
+              <Ionicons name="open-outline" size={18} color={colors.white} />
+            ) : null}
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -177,5 +250,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
   },
+  applyBtnDone: { backgroundColor: colors.success },
   applyText: { color: colors.white, fontSize: 16, fontWeight: '800' },
 });
