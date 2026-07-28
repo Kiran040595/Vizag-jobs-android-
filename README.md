@@ -16,8 +16,10 @@ logic.
 - Save jobs locally and revisit them on the **Saved Jobs** screen
 - Live stats (active jobs, companies hiring, new this week, categories)
 
-Data comes from Supabase when credentials are configured, otherwise the app
-falls back to bundled **sample Vizag jobs** so it runs with zero setup.
+Data comes from the same Supabase `jobs` project as
+[jobsinvizag.in](https://jobsinvizag.in). Credentials default to that production
+project (public anon key); override via `.env` if needed. On fetch failure the
+app falls back to bundled **sample Vizag jobs**.
 
 ## Getting started
 
@@ -49,14 +51,16 @@ npm start          # Expo dev server (scan QR with Expo Go on a phone)
 npm run build:apk  # build a debug APK (output in android/app/build/outputs/apk/debug/)
 ```
 
-### Supabase (optional, for live data)
+### Supabase (live Vizag Jobs data)
 
-Copy `.env.example` to `.env` and fill in your project's values (the same as the
-web app's `VITE_SUPABASE_*`):
+The app is wired to the production Vizag Jobs Supabase project by default
+(same as `VITE_SUPABASE_*` on jobsinvizag.in). Copy `.env.example` to `.env` to
+override:
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+EXPO_PUBLIC_SUPABASE_URL=https://fbyyfyhdglcpkhxskffj.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+EXPO_PUBLIC_SUPABASE_JOBS_TABLE=jobs
 ```
 
 ## Scripts

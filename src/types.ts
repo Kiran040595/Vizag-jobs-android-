@@ -17,15 +17,20 @@ export interface Job {
   experience?: string | null;
   isFresher?: string; // 'Yes' | 'No'
   isFeatured?: boolean;
+  isInstagram?: boolean;
+  groupLink?: string | null;
   salary: string | null;
   shortDescription?: string | null;
   description?: string | null;
   responsibilities?: string | null;
   eligibility?: string | null;
+  warning?: string | null;
   skills?: string | null;
   companyLogoUrl?: string | null;
   sourceName?: string | null;
+  sourceUrl?: string | null;
   applyLink?: string | null;
+  applyMode?: 'internal' | 'external';
   postedAt?: string | null; // ISO timestamp
   expiresAt?: string | null;
   status?: string | null;

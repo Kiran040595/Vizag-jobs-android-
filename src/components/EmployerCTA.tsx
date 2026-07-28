@@ -14,7 +14,7 @@ export default function EmployerCTA() {
         </Text>
         <Pressable
           style={styles.btn}
-          onPress={() => Linking.openURL('https://jobsinvizag.in')}
+          onPress={() => Linking.openURL('https://jobsinvizag.in/employer/register')}
           accessibilityRole="button"
           accessibilityLabel="Post a Job"
         >

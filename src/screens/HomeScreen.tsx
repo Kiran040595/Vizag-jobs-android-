@@ -102,7 +102,7 @@ export default function HomeScreen({ navigation }: Props) {
       {usingSample ? (
         <View style={styles.sampleBanner}>
           <Text style={styles.sampleText}>
-            Showing sample Vizag jobs — connect Supabase to load live listings.
+            Showing sample Vizag jobs — live Supabase listings unavailable right now.
           </Text>
         </View>
       ) : null}

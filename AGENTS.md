@@ -41,10 +41,11 @@ duplicating.
   platform + build-tools via Gradle, which needs network access.
 
 ### Data / Supabase
-- With no Supabase env vars the app shows **bundled sample Vizag jobs**
-  (`src/data/sampleJobs.ts`) — it runs fully offline. To use live data, set
-  `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (same values as
-  the web app's `VITE_SUPABASE_*`), e.g. via `.env` or Cloud secrets.
+- Defaults to the **production Vizag Jobs** Supabase project
+  (`fbyyfyhdglcpkhxskffj`, same as jobsinvizag.in / web `VITE_SUPABASE_*`).
+  Override with `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` in
+  `.env` if needed. On fetch failure the app falls back to bundled sample jobs
+  (`src/data/sampleJobs.ts`).
 
 ### Gotcha
 - Metro caches transform errors: if you see a parse/syntax error whose code
