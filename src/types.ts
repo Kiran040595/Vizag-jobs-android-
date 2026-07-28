@@ -30,7 +30,8 @@ export interface Job {
   sourceName?: string | null;
   sourceUrl?: string | null;
   applyLink?: string | null;
-  applyMode?: 'internal' | 'external';
+  /** `internal` = apply on Vizag Jobs; otherwise external apply link. */
+  applyMode?: string | null;
   postedAt?: string | null; // ISO timestamp
   expiresAt?: string | null;
   status?: string | null;

@@ -6,11 +6,14 @@
  * in the jobsinvizag.in web bundle), so list/detail screens stay live by default.
  * Bundled sample data is only used when a live fetch fails (see services/jobs.ts).
  *
+ * Auth sessions persist via AsyncStorage so students stay signed in.
+ *
  * Set these in a `.env` file (see `.env.example`) to override:
  *   EXPO_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
  *   EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
  */
 import 'react-native-url-polyfill/auto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /** Production Vizag Jobs project (jobsinvizag.in) — public anon credentials. */
@@ -24,17 +27,16 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || PRODUCTION_
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 /**
- * Anon-only client for public reads (job lists, detail pages).
- * Matches web `supabasePublic`: no session persist / refresh so lists never
- * block on auth lock.
+ * Shared client for public job reads and student auth/apply.
+ * Session persistence keeps students signed in across app restarts.
  */
 export const supabase: SupabaseClient | null = isSupabaseConfigured
   ? createClient(supabaseUrl as string, supabaseAnonKey as string, {
       auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+        storage: AsyncStorage,
+        persistSession: true,
+        autoRefreshToken: true,
         detectSessionInUrl: false,
-        storageKey: 'vizagjobs-public-anon',
       },
     })
   : null;

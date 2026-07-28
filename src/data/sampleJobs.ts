@@ -30,6 +30,7 @@ export const SAMPLE_JOBS: Job[] = [
     skills: 'React Native, TypeScript, Redux, REST APIs, Git',
     sourceName: 'Company Website',
     applyLink: 'https://jobsinvizag.in',
+    applyMode: 'internal',
     postedAt: hoursAgo(3),
   },
   {

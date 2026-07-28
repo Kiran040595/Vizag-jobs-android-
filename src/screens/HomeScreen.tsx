@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing } from '../theme';
 import type { Job, Filters } from '../types';
-import type { RootStackParamList } from '../navigation/types';
+import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { fetchJobs } from '../services/jobs';
 import {
   DEFAULT_FILTERS,
@@ -20,7 +21,10 @@ import StatsSection, { type SiteStats } from '../components/StatsSection';
 import EmployerCTA from '../components/EmployerCTA';
 import JobCard from '../components/JobCard';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<MainTabParamList, 'Jobs'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 const computeStats = (jobs: Job[]): SiteStats => {
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -97,7 +101,7 @@ export default function HomeScreen({ navigation }: Props) {
         onChangeSearch={setSearchInput}
         onSubmit={submitSearch}
         savedCount={savedIds.length}
-        onOpenSaved={() => navigation.navigate('SavedJobs')}
+        onOpenSaved={() => navigation.navigate('Saved')}
       />
       {usingSample ? (
         <View style={styles.sampleBanner}>
