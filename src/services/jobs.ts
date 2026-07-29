@@ -169,3 +169,9 @@ export const fetchJobById = async (idOrSlug: string): Promise<Job | null> => {
     return null;
   }
 };
+
+/** Published jobs flagged for the Instagram / Latest feed (`is_instagram`). */
+export const fetchInstagramJobs = async (): Promise<Job[]> => {
+  const { jobs } = await fetchJobs();
+  return jobs.filter((job) => Boolean(job.isInstagram));
+};

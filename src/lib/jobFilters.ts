@@ -36,13 +36,15 @@ export const DEFAULT_FILTERS: Filters = Object.freeze({
   category: 'all',
   jobType: 'all',
   freshness: 'all',
+  instagramOnly: false,
 });
 
 export const isAnyFilterActive = (filters: Filters): boolean =>
   Boolean((filters.q ?? '').trim()) ||
   filters.category !== 'all' ||
   filters.jobType !== 'all' ||
-  filters.freshness !== 'all';
+  filters.freshness !== 'all' ||
+  Boolean(filters.instagramOnly);
 
 const matchesSearchText = (job: Job, q: string): boolean => {
   if (!q) return true;
@@ -102,7 +104,8 @@ export const applyJobFilters = (jobs: Job[], filters: Filters): Job[] => {
       matchesSearchText(job, q) &&
       jobMatchesCategoryFilter(job, filters.category) &&
       matchesJobType(job, filters.jobType) &&
-      matchesFreshness(job, filters.freshness),
+      matchesFreshness(job, filters.freshness) &&
+      (!filters.instagramOnly || Boolean(job.isInstagram)),
   );
 };
 

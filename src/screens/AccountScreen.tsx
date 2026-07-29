@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +11,8 @@ import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/nat
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useStudentAuth } from '../context/StudentAuthContext';
-import type { MainTabParamList, RootStackParamList } from '../navigation/types';
+import type { LegalPage, MainTabParamList, RootStackParamList } from '../navigation/types';
+import { openExternalUrl } from '../lib/openExternalUrl';
 import {
   fetchReplyNotifications,
   formatReplyNotificationTime,
@@ -27,12 +27,11 @@ type Props = CompositeScreenProps<
   NativeStackScreenProps<RootStackParamList>
 >;
 
-const LEGAL_LINKS = [
-  { label: 'About Vizag Jobs', url: 'https://jobsinvizag.in/about' },
-  { label: 'Privacy policy', url: 'https://jobsinvizag.in/privacy-policy' },
-  { label: 'Terms of service', url: 'https://jobsinvizag.in/terms-of-service' },
-  { label: 'Disclaimer', url: 'https://jobsinvizag.in/disclaimer' },
-  { label: 'Employer portal', url: 'https://jobsinvizag.in/employer/login' },
+const LEGAL_ITEMS: { label: string; page: LegalPage }[] = [
+  { label: 'About Vizag Jobs', page: 'about' },
+  { label: 'Privacy policy', page: 'privacy' },
+  { label: 'Terms of service', page: 'terms' },
+  { label: 'Disclaimer', page: 'disclaimer' },
 ];
 
 export default function AccountScreen({ navigation }: Props) {
@@ -106,9 +105,35 @@ export default function AccountScreen({ navigation }: Props) {
       const url = item.linkPath.startsWith('http')
         ? item.linkPath
         : `https://jobsinvizag.in${item.linkPath}`;
-      void Linking.openURL(url);
+      void openExternalUrl(url);
     }
   };
+
+  const legalLinks = (
+    <>
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('BlogList')}>
+        <Text style={styles.menuTitle}>Blog</Text>
+        <Text style={styles.menuBody}>Career tips and Vizag job news</Text>
+      </Pressable>
+
+      {LEGAL_ITEMS.map((item) => (
+        <Pressable
+          key={item.page}
+          style={styles.linkRow}
+          onPress={() => navigation.navigate('Legal', { page: item.page })}
+        >
+          <Text style={styles.linkText}>{item.label}</Text>
+        </Pressable>
+      ))}
+
+      <Pressable
+        style={styles.linkRow}
+        onPress={() => openExternalUrl('https://jobsinvizag.in/employer/login')}
+      >
+        <Text style={styles.linkText}>Employer portal (website)</Text>
+      </Pressable>
+    </>
+  );
 
   if (isLoading) {
     return (
@@ -155,15 +180,7 @@ export default function AccountScreen({ navigation }: Props) {
           <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
         </Pressable>
 
-        {LEGAL_LINKS.map((item) => (
-          <Pressable
-            key={item.url}
-            style={styles.linkRow}
-            onPress={() => Linking.openURL(item.url)}
-          >
-            <Text style={styles.linkText}>{item.label}</Text>
-          </Pressable>
-        ))}
+        {legalLinks}
       </ScrollView>
     );
   }
@@ -237,11 +254,7 @@ export default function AccountScreen({ navigation }: Props) {
         ))
       )}
 
-      {LEGAL_LINKS.map((item) => (
-        <Pressable key={item.url} style={styles.linkRow} onPress={() => Linking.openURL(item.url)}>
-          <Text style={styles.linkText}>{item.label}</Text>
-        </Pressable>
-      ))}
+      {legalLinks}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 

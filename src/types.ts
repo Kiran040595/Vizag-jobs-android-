@@ -42,4 +42,6 @@ export interface Filters {
   category: string;
   jobType: string;
   freshness: string;
+  /** When true, only jobs flagged `is_instagram` (Latest / Instagram feed). */
+  instagramOnly?: boolean;
 }

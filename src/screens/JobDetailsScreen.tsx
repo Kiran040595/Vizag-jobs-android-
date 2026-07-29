@@ -5,13 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   Pressable,
-  Linking,
   ActivityIndicator,
   Alert,
   Share,
   Modal,
   TextInput,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, radius, spacing } from '../theme';
@@ -23,13 +23,18 @@ import { applyButtonLabel, isInternalApplyJob, jobSupportsApply } from '../lib/j
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { fetchMyApplicationForJob } from '../services/jobApplications';
 import { fetchJobById, fetchJobs } from '../services/jobs';
-import { buildJobPublicUrl, getDailyUpdatesChannelUrl, getJobGroupLink } from '../lib/jobGroupLink';
+import { getDailyUpdatesChannelUrl, getJobGroupLink } from '../lib/jobGroupLink';
+import { buildJobPlaceholder } from '../lib/jobDeepLink';
+import { buildJobSharePayload } from '../lib/jobShare';
+import { openExternalUrl } from '../lib/openExternalUrl';
 import { findSimilarJobs } from '../lib/similarJobs';
 import {
   fetchPublishedJobQuestions,
   submitJobQuestion,
+  validateQuestionInput,
   type JobQuestion,
 } from '../services/jobQuestions';
+import MarkdownBody from '../components/MarkdownBody';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'JobDetails'>;
 
@@ -37,56 +42,83 @@ const Row = ({
   icon,
   label,
   value,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value?: string | null;
+  onPress?: () => void;
 }) => {
   if (!value) return null;
-  return (
+  const content = (
     <View style={styles.metaRow}>
       <Ionicons name={icon} size={16} color={colors.primary} />
       <Text style={styles.metaLabel}>{label}:</Text>
-      <Text style={styles.metaValue}>{value}</Text>
+      <Text style={[styles.metaValue, onPress ? styles.metaLink : null]}>{value}</Text>
     </View>
   );
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} accessibilityRole="link">
+        {content}
+      </Pressable>
+    );
+  }
+  return content;
 };
 
-const Section = ({ title, body }: { title: string; body?: string | null }) => {
+const MarkdownSection = ({ title, body }: { title: string; body?: string | null }) => {
   if (!body) return null;
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
-      <Text style={styles.sectionBody}>{body}</Text>
+      <MarkdownBody>{body}</MarkdownBody>
     </View>
   );
 };
 
 export default function JobDetailsScreen({ navigation, route }: Props) {
-  const { job: initialJob } = route.params;
+  const params = route.params ?? {};
+  const lookupKey = params.jobId || params.slug || params.job?.slug || params.job?.id || '';
   const { isLoading, isStudent, profileComplete, session, mappedProfile, user } = useStudentAuth();
-  const [job, setJob] = useState<Job>(initialJob);
-  const [allJobs, setAllJobs] = useState<Job[]>([]);
-  const [loadingDetail, setLoadingDetail] = useState(
-    () => Boolean(initialJob.slug || initialJob.id),
+  const [job, setJob] = useState<Job>(
+    () => params.job ?? buildJobPlaceholder({ jobId: params.jobId, slug: params.slug }),
   );
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [loadingDetail, setLoadingDetail] = useState(() => Boolean(lookupKey));
+  const [loadError, setLoadError] = useState(() => (lookupKey ? '' : 'Job not found.'));
   const [saved, setSaved] = useState(false);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
   const [channelModalVisible, setChannelModalVisible] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [pendingExternalUrl, setPendingExternalUrl] = useState<string | null>(null);
   const [questions, setQuestions] = useState<JobQuestion[]>([]);
+  const [askerName, setAskerName] = useState(
+    () => (session && isStudent ? mappedProfile?.fullName || '' : ''),
+  );
+  const [askerEmail, setAskerEmail] = useState(
+    () => (session && isStudent ? mappedProfile?.contactEmail || user?.email || '' : ''),
+  );
   const [questionBody, setQuestionBody] = useState('');
   const [questionError, setQuestionError] = useState('');
   const [questionNotice, setQuestionNotice] = useState('');
   const [submittingQuestion, setSubmittingQuestion] = useState(false);
+  const [copyNotice, setCopyNotice] = useState('');
 
   const similarJobs = useMemo(() => findSimilarJobs(allJobs, job), [allJobs, job]);
   const groupLink = getJobGroupLink(job);
+  const share = useMemo(() => buildJobSharePayload(job), [job]);
+  const isGuestAsker = !(session && isStudent);
+  const resolvedAskerName = isGuestAsker
+    ? askerName
+    : askerName || mappedProfile?.fullName || '';
+  const resolvedAskerEmail = isGuestAsker
+    ? askerEmail
+    : askerEmail || mappedProfile?.contactEmail || user?.email || '';
 
   useEffect(() => {
-    isJobSaved(initialJob.id).then(setSaved);
-  }, [initialJob.id]);
+    isJobSaved(job.id).then(setSaved);
+  }, [job.id]);
 
   useEffect(() => {
     let active = true;
@@ -100,24 +132,36 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     let active = true;
-    const key = initialJob.slug || initialJob.id;
+    const key = lookupKey;
     if (!key) {
       return () => {
         active = false;
       };
     }
+
     fetchJobById(key).then((full) => {
       if (!active) return;
-      if (full) setJob(full);
+      if (full) {
+        setJob(full);
+        navigation.setOptions({ title: full.title });
+        setLoadError('');
+      } else if (!params.job) {
+        setLoadError('This job is unavailable or no longer published.');
+      }
       setLoadingDetail(false);
     });
     return () => {
       active = false;
     };
-  }, [initialJob.id, initialJob.slug]);
+  }, [lookupKey, params.job, navigation]);
 
   useEffect(() => {
     let active = true;
+    if (!job.id || job.id === 'loading') {
+      return () => {
+        active = false;
+      };
+    }
     fetchPublishedJobQuestions(job.id)
       .then((rows) => {
         if (active) setQuestions(rows);
@@ -133,7 +177,7 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
   useEffect(() => {
     let active = true;
 
-    if (!session || !isStudent) {
+    if (!session || !isStudent || !job.id || job.id === 'loading') {
       queueMicrotask(() => {
         if (active) setAlreadyApplied(false);
       });
@@ -160,15 +204,33 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
   };
 
   const onShare = async () => {
-    const url = buildJobPublicUrl(job);
     try {
       await Share.share({
-        message: `${job.title}${job.company ? ` at ${job.company}` : ''}\n${url}`,
-        url,
-        title: job.title,
+        message: share.fullMessage,
+        url: share.url,
+        title: share.title,
       });
     } catch {
       // user cancelled
+    }
+  };
+
+  const onWhatsAppShare = () => {
+    void openExternalUrl(share.whatsappUrl);
+  };
+
+  const onTelegramShare = () => {
+    void openExternalUrl(share.telegramUrl);
+  };
+
+  const onCopyLink = async () => {
+    try {
+      await Clipboard.setStringAsync(share.fullMessage);
+      setCopyNotice('Link copied');
+      setTimeout(() => setCopyNotice(''), 2000);
+    } catch {
+      setCopyNotice('Copy failed');
+      setTimeout(() => setCopyNotice(''), 2000);
     }
   };
 
@@ -180,10 +242,10 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
   const confirmExternalApply = async (joinChannelFirst: boolean) => {
     setChannelModalVisible(false);
     if (joinChannelFirst) {
-      await Linking.openURL(getDailyUpdatesChannelUrl());
+      await openExternalUrl(getDailyUpdatesChannelUrl());
     }
     if (pendingExternalUrl) {
-      await Linking.openURL(pendingExternalUrl);
+      await openExternalUrl(pendingExternalUrl);
     }
     setPendingExternalUrl(null);
   };
@@ -225,18 +287,23 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
   const onAskQuestion = async () => {
     setQuestionError('');
     setQuestionNotice('');
-    if (!session || !isStudent) {
-      navigation.navigate('StudentLogin');
+    const validation = validateQuestionInput({
+      askerName: resolvedAskerName,
+      askerEmail: resolvedAskerEmail,
+      body: questionBody,
+    });
+    if (validation) {
+      setQuestionError(validation);
       return;
     }
     setSubmittingQuestion(true);
     try {
       await submitJobQuestion({
         jobId: job.id,
-        askerName: mappedProfile?.fullName || '',
-        askerEmail: mappedProfile?.contactEmail || user?.email || '',
+        askerName: resolvedAskerName,
+        askerEmail: resolvedAskerEmail,
         body: questionBody,
-        askerUserId: session.user.id,
+        askerUserId: session?.user?.id ?? null,
       });
       setQuestionBody('');
       setQuestionNotice('Question submitted. It will appear after review.');
@@ -249,6 +316,17 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
 
   const canApply = jobSupportsApply(job);
   const label = alreadyApplied ? 'Applied' : applyButtonLabel(job);
+
+  if (loadError && !params.job) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{loadError}</Text>
+        <Pressable style={styles.qaBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.applyText}>Go back</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -282,6 +360,21 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
           <Text style={styles.posted}>Posted {formatRelativePostedAt(job.postedAt)}</Text>
         ) : null}
 
+        <View style={styles.shareRow}>
+          <Pressable style={styles.shareChip} onPress={onWhatsAppShare} accessibilityLabel="Share on WhatsApp">
+            <Ionicons name="logo-whatsapp" size={18} color="#047857" />
+            <Text style={styles.shareChipText}>WhatsApp</Text>
+          </Pressable>
+          <Pressable style={styles.shareChip} onPress={onTelegramShare} accessibilityLabel="Share on Telegram">
+            <Ionicons name="paper-plane-outline" size={18} color="#0369a1" />
+            <Text style={styles.shareChipText}>Telegram</Text>
+          </Pressable>
+          <Pressable style={styles.shareChip} onPress={onCopyLink} accessibilityLabel="Copy link">
+            <Ionicons name="link-outline" size={18} color={colors.primaryDark} />
+            <Text style={styles.shareChipText}>{copyNotice || 'Copy'}</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.metaCard}>
           <Row icon="location" label="Location" value={job.location} />
           <Row icon="pricetag" label="Category" value={job.category} />
@@ -290,10 +383,16 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
           <Row icon="ribbon" label="Experience" value={job.experience} />
           <Row icon="cash" label="Salary" value={job.salary} />
           <Row icon="school" label="Fresher friendly" value={job.isFresher} />
+          <Row
+            icon="globe-outline"
+            label="Source"
+            value={job.sourceUrl ? job.sourceName || 'Open source' : null}
+            onPress={job.sourceUrl ? () => openExternalUrl(job.sourceUrl!) : undefined}
+          />
         </View>
 
         {groupLink ? (
-          <Pressable style={styles.groupBtn} onPress={() => Linking.openURL(groupLink)}>
+          <Pressable style={styles.groupBtn} onPress={() => openExternalUrl(groupLink)}>
             <Ionicons name="people-outline" size={18} color={colors.primaryDark} />
             <Text style={styles.groupBtnText}>Join job updates group</Text>
           </Pressable>
@@ -306,11 +405,16 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        <Section title="About this role" body={job.description || job.shortDescription} />
-        <Section title="Responsibilities" body={job.responsibilities} />
-        <Section title="Eligibility" body={job.eligibility} />
-        <Section title="Skills" body={job.skills} />
-        <Section title="Note" body={job.warning} />
+        <MarkdownSection title="About this role" body={job.description || job.shortDescription} />
+        <MarkdownSection title="Responsibilities" body={job.responsibilities} />
+        <MarkdownSection title="Eligibility" body={job.eligibility} />
+        <MarkdownSection title="Skills" body={job.skills} />
+        {job.warning ? (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning-outline" size={18} color="#92400e" />
+            <Text style={styles.warningText}>{job.warning}</Text>
+          </View>
+        ) : null}
 
         {similarJobs.length ? (
           <View style={styles.section}>
@@ -344,6 +448,27 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
               </View>
             ))
           )}
+          {isGuestAsker ? (
+            <>
+              <TextInput
+                style={styles.qaInputSingle}
+                value={askerName}
+                onChangeText={setAskerName}
+                placeholder="Your name"
+                placeholderTextColor={colors.textSubtle}
+                autoCapitalize="words"
+              />
+              <TextInput
+                style={styles.qaInputSingle}
+                value={askerEmail}
+                onChangeText={setAskerEmail}
+                placeholder="Your email"
+                placeholderTextColor={colors.textSubtle}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </>
+          ) : null}
           <TextInput
             style={styles.qaInput}
             value={questionBody}
@@ -425,7 +550,7 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
                 style={styles.applyBtn}
                 onPress={() => {
                   setSuccessModalVisible(false);
-                  void Linking.openURL(groupLink);
+                  void openExternalUrl(groupLink);
                 }}
               >
                 <Text style={styles.applyText}>Open group link</Text>
@@ -449,6 +574,15 @@ export default function JobDetailsScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+    backgroundColor: colors.bg,
+    gap: spacing.md,
+  },
+  errorText: { color: '#be123c', fontWeight: '700', textAlign: 'center' },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   badgeRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm, flexWrap: 'wrap' },
   featuredBadge: {
@@ -473,6 +607,24 @@ const styles = StyleSheet.create({
   title: { flex: 1, fontSize: 22, fontWeight: '900', color: colors.text, lineHeight: 28 },
   company: { fontSize: 15, fontWeight: '700', color: colors.textMuted, marginTop: spacing.xs },
   posted: { fontSize: 12, color: colors.textSubtle, marginTop: spacing.xs },
+  shareRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  shareChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  shareChipText: { fontSize: 12, fontWeight: '800', color: colors.textMuted },
   metaCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -485,6 +637,7 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   metaLabel: { fontSize: 13, fontWeight: '700', color: colors.text },
   metaValue: { fontSize: 13, color: colors.textMuted, flex: 1 },
+  metaLink: { color: colors.primary, fontWeight: '700' },
   groupBtn: {
     marginTop: spacing.md,
     flexDirection: 'row',
@@ -507,6 +660,17 @@ const styles = StyleSheet.create({
   section: { marginTop: spacing.xl },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: spacing.sm },
   sectionBody: { fontSize: 14, color: colors.textMuted, lineHeight: 21 },
+  warningBanner: {
+    marginTop: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    backgroundColor: '#fffbeb',
+    borderColor: '#fde68a',
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  warningText: { flex: 1, color: '#92400e', fontWeight: '600', lineHeight: 20 },
   similarRow: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -527,6 +691,16 @@ const styles = StyleSheet.create({
   },
   qaAsk: { fontWeight: '700', color: colors.text },
   qaAns: { marginTop: spacing.sm, color: colors.textMuted },
+  qaInputSingle: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    color: colors.text,
+    backgroundColor: colors.surface,
+  },
   qaInput: {
     minHeight: 80,
     borderWidth: 1,

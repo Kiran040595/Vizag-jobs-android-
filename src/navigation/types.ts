@@ -1,4 +1,5 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { BlogPost } from '../services/blogs';
 import type { Job } from '../types';
 
 export type MainTabParamList = {
@@ -7,9 +8,12 @@ export type MainTabParamList = {
   Account: undefined;
 };
 
+export type LegalPage = 'about' | 'privacy' | 'terms' | 'disclaimer';
+
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  JobDetails: { job: Job };
+  /** Pass a full `job`, or `jobId` / `slug` for deep links (detail will fetch). */
+  JobDetails: { job?: Job; jobId?: string; slug?: string };
   StudentLogin: { applyJobId?: string } | undefined;
   StudentRegister: { applyJobId?: string } | undefined;
   StudentForgotPassword: undefined;
@@ -18,4 +22,7 @@ export type RootStackParamList = {
   StudentApplications: undefined;
   StudentApply: { jobId: string; job?: Job };
   Feedback: undefined;
+  BlogList: undefined;
+  BlogPost: { slug: string; post?: BlogPost };
+  Legal: { page: LegalPage };
 };

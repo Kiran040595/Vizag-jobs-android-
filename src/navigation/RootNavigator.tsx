@@ -16,6 +16,9 @@ import StudentProfileScreen from '../screens/StudentProfileScreen';
 import StudentApplicationsScreen from '../screens/StudentApplicationsScreen';
 import StudentApplyScreen from '../screens/StudentApplyScreen';
 import FeedbackScreen from '../screens/FeedbackScreen';
+import BlogListScreen from '../screens/BlogListScreen';
+import BlogPostScreen from '../screens/BlogPostScreen';
+import LegalScreen from '../screens/LegalScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -84,6 +87,9 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="StudentApply" component={StudentApplyScreen} options={{ title: 'Apply' }} />
       <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback' }} />
+      <Stack.Screen name="BlogList" component={BlogListScreen} options={{ title: 'Blog' }} />
+      <Stack.Screen name="BlogPost" component={BlogPostScreen} options={{ title: 'Post' }} />
+      <Stack.Screen name="Legal" component={LegalScreen} options={{ title: 'Legal' }} />
     </Stack.Navigator>
   );
 }

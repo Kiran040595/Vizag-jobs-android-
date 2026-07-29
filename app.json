@@ -13,7 +13,8 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jobsinvizag.app"
+      "bundleIdentifier": "com.jobsinvizag.app",
+      "associatedDomains": ["applinks:jobsinvizag.in", "applinks:www.jobsinvizag.in"]
     },
     "android": {
       "package": "com.jobsinvizag.app",
@@ -23,11 +24,43 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "jobsinvizag.in",
+              "pathPrefix": "/jobs"
+            },
+            {
+              "scheme": "https",
+              "host": "jobsinvizag.in",
+              "pathPrefix": "/job"
+            },
+            {
+              "scheme": "https",
+              "host": "www.jobsinvizag.in",
+              "pathPrefix": "/jobs"
+            },
+            {
+              "scheme": "https",
+              "host": "www.jobsinvizag.in",
+              "pathPrefix": "/job"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

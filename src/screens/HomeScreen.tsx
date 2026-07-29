@@ -35,11 +35,14 @@ type Props = CompositeScreenProps<
 const QUICK_PRESETS = [
   { id: 'it', label: 'IT' },
   { id: 'fresher', label: 'Fresher' },
-  { id: 'part-time', label: 'Part-time', jobType: 'part-time' },
+  { id: 'part-time', label: 'Part-time', jobType: 'part-time' as const },
   { id: 'civil', label: 'Civil' },
   { id: 'mechanical', label: 'Mechanical' },
   { id: 'walk-in', label: 'Walk-in' },
+  { id: 'instagram', label: 'Latest', instagramOnly: true as const },
 ];
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 const computeStats = (jobs: Job[]): SiteStats => {
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -79,6 +82,18 @@ export default function HomeScreen({ navigation }: Props) {
       active = false;
     };
   }, []);
+
+  // Debounce search input (~300ms) into the active filter query.
+  useEffect(() => {
+    const handle = setTimeout(() => {
+      setFilters((f) => {
+        if (f.q === searchInput) return f;
+        return { ...f, q: searchInput };
+      });
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
 
   useFocusEffect(
     useCallback(() => {
@@ -120,11 +135,30 @@ export default function HomeScreen({ navigation }: Props) {
 
   const applyPreset = useCallback((preset: (typeof QUICK_PRESETS)[number]) => {
     setPage(1);
-    if (preset.jobType) {
-      setFilters((f) => ({ ...f, jobType: preset.jobType!, category: 'all' }));
+    if ('instagramOnly' in preset && preset.instagramOnly) {
+      setFilters((f) => ({
+        ...f,
+        category: 'all',
+        jobType: 'all',
+        instagramOnly: true,
+      }));
       return;
     }
-    setFilters((f) => ({ ...f, category: preset.id, jobType: 'all' }));
+    if (preset.jobType) {
+      setFilters((f) => ({
+        ...f,
+        jobType: preset.jobType!,
+        category: 'all',
+        instagramOnly: false,
+      }));
+      return;
+    }
+    setFilters((f) => ({
+      ...f,
+      category: preset.id,
+      jobType: 'all',
+      instagramOnly: false,
+    }));
   }, []);
 
   const header = (
@@ -152,7 +186,13 @@ export default function HomeScreen({ navigation }: Props) {
       <Text style={styles.sectionTitle}>Quick browse</Text>
       <CategoryChips
         options={QUICK_PRESETS.map((p) => ({ id: p.id, label: p.label }))}
-        selected={filters.jobType === 'part-time' ? 'part-time' : filters.category}
+        selected={
+          filters.instagramOnly
+            ? 'instagram'
+            : filters.jobType === 'part-time'
+              ? 'part-time'
+              : filters.category
+        }
         onSelect={(id) => {
           const preset = QUICK_PRESETS.find((p) => p.id === id);
           if (preset) applyPreset(preset);
@@ -164,7 +204,7 @@ export default function HomeScreen({ navigation }: Props) {
         selected={filters.category}
         onSelect={(id) => {
           setPage(1);
-          setFilters((f) => ({ ...f, category: id }));
+          setFilters((f) => ({ ...f, category: id, instagramOnly: false }));
         }}
       />
       <CategoryChips
@@ -172,7 +212,7 @@ export default function HomeScreen({ navigation }: Props) {
         selected={filters.jobType}
         onSelect={(id) => {
           setPage(1);
-          setFilters((f) => ({ ...f, jobType: id }));
+          setFilters((f) => ({ ...f, jobType: id, instagramOnly: false }));
         }}
       />
       <CategoryChips
