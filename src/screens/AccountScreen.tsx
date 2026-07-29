@@ -34,7 +34,6 @@ const LEGAL_LINKS = [
   { label: 'Privacy policy', url: 'https://jobsinvizag.in/privacy-policy' },
   { label: 'Terms of service', url: 'https://jobsinvizag.in/terms-of-service' },
   { label: 'Disclaimer', url: 'https://jobsinvizag.in/disclaimer' },
-  { label: 'Employer portal', url: 'https://jobsinvizag.in/employer/login' },
 ];
 
 export default function AccountScreen({ navigation }: Props) {
@@ -177,6 +176,16 @@ export default function AccountScreen({ navigation }: Props) {
           <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
         </Pressable>
 
+        <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('EmployerLogin')}>
+          <Text style={styles.menuTitle}>Employer portal</Text>
+          <Text style={styles.menuBody}>Post jobs and review applicants in the app</Text>
+        </Pressable>
+
+        <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('AdminLogin')}>
+          <Text style={styles.menuTitle}>Admin login</Text>
+          <Text style={styles.menuBody}>Review employer-submitted jobs</Text>
+        </Pressable>
+
         {LEGAL_LINKS.map((item) => (
           <Pressable
             key={item.url}
@@ -236,6 +245,16 @@ export default function AccountScreen({ navigation }: Props) {
       >
         <Text style={styles.menuTitle}>Send feedback</Text>
         <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
+      </Pressable>
+
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('EmployerLogin')}>
+        <Text style={styles.menuTitle}>Employer portal</Text>
+        <Text style={styles.menuBody}>Post jobs and review applicants in the app</Text>
+      </Pressable>
+
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('AdminLogin')}>
+        <Text style={styles.menuTitle}>Admin login</Text>
+        <Text style={styles.menuBody}>Review employer-submitted jobs</Text>
       </Pressable>
 
       <View style={styles.notifHeader}>
