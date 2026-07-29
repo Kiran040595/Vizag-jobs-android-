@@ -62,10 +62,12 @@ export default function HomeScreen({ navigation }: Props) {
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [usingSample, setUsingSample] = useState(false);
+  const [loadError, setLoadError] = useState<string | undefined>();
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -73,11 +75,18 @@ export default function HomeScreen({ navigation }: Props) {
       if (!active) return;
       setAllJobs(result.jobs);
       setUsingSample(result.usingSampleData);
+      setLoadError(result.error);
       setLoading(false);
     });
     return () => {
       active = false;
     };
+  }, [reloadToken]);
+
+  const retryLoad = useCallback(() => {
+    setLoading(true);
+    setLoadError(undefined);
+    setReloadToken((n) => n + 1);
   }, []);
 
   useFocusEffect(
@@ -139,8 +148,17 @@ export default function HomeScreen({ navigation }: Props) {
       {usingSample ? (
         <View style={styles.sampleBanner}>
           <Text style={styles.sampleText}>
-            Showing sample Vizag jobs — live Supabase listings unavailable right now.
+            Showing sample Vizag jobs — could not reach live listings
+            {loadError ? ` (${loadError})` : ''}. Check your internet connection, then retry.
           </Text>
+          <Pressable
+            onPress={retryLoad}
+            style={styles.retryBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading live jobs"
+          >
+            <Text style={styles.retryText}>Retry live jobs</Text>
+          </Pressable>
         </View>
       ) : null}
       {jobsForYou.length ? (
@@ -274,8 +292,17 @@ const styles = StyleSheet.create({
     borderBottomColor: '#fde68a',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   sampleText: { color: '#854d0e', fontSize: 12, fontWeight: '600' },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#854d0e',
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  retryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',

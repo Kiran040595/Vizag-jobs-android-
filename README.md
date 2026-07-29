@@ -68,15 +68,25 @@ npm run build:apk  # build a debug APK (output in android/app/build/outputs/apk/
 ### Supabase (live Vizag Jobs data)
 
 The app is wired to the production Vizag Jobs Supabase project by default
-(same as `VITE_SUPABASE_*` on jobsinvizag.in). Copy `.env.example` to `.env` to
-override:
+(same as `VITE_SUPABASE_*` on jobsinvizag.in). Credentials are embedded in the
+client and also listed in `.env.example`.
+
+**Important for APK builds:** run `npm run build:apk` (not a raw Gradle command).
+That script copies `.env.example` → `.env` when needed, rejects README
+placeholders like `<anon-key>`, and produces a sideloadable APK with the JS
+bundle embedded so live jobs load without Metro.
+
+To override the project, copy `.env.example` to `.env` and edit:
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://fbyyfyhdglcpkhxskffj.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<paste the anon key from .env.example>
 EXPO_PUBLIC_SUPABASE_JOBS_TABLE=jobs
 ```
 
+Do not leave angle-bracket placeholders in `.env` — they are ignored and the
+app falls back to the production key, but a bad non-placeholder key will break
+live fetches and show sample jobs instead.
 ## Scripts
 
 | Command | Description |
@@ -84,7 +94,7 @@ EXPO_PUBLIC_SUPABASE_JOBS_TABLE=jobs
 | `npm run setup` | Full environment bootstrap (deps + SDK + prebuild) |
 | `npm run web` / `android` / `ios` | Start the app on a target platform |
 | `npm run prebuild:android` | Generate native `android/` project from Expo config |
-| `npm run build:apk` | Build a debug APK with Gradle |
+| `npm run build:apk` | Build a sideloadable APK with live Supabase env + embedded JS |
 | `npm run lint` | ESLint (expo config) |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
 | `npm test` | Jest unit tests (filter/pagination logic) |
