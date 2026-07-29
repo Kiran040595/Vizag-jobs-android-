@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+} from 'react-native';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,7 +26,7 @@ import {
 } from '../lib/jobFilters';
 import { FILTER_CATEGORY_OPTIONS, normalizeJobCategory } from '../data/categories';
 import { getSavedJobIds, toggleSavedJob } from '../lib/savedJobs';
-import { rankJobsForStudent } from '../lib/studentJobMatch';
+import { rankJobsForStudent, type RankedJob } from '../lib/studentJobMatch';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import HeroSection from '../components/HeroSection';
 import CategoryChips from '../components/CategoryChips';
@@ -62,10 +70,13 @@ export default function HomeScreen({ navigation }: Props) {
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [usingSample, setUsingSample] = useState(false);
+  const [loadError, setLoadError] = useState<string | undefined>();
   const [searchInput, setSearchInput] = useState('');
   const [filters, setFilters] = useState<Filters>({ ...DEFAULT_FILTERS });
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -73,11 +84,28 @@ export default function HomeScreen({ navigation }: Props) {
       if (!active) return;
       setAllJobs(result.jobs);
       setUsingSample(result.usingSampleData);
+      setLoadError(result.error);
       setLoading(false);
     });
     return () => {
       active = false;
     };
+  }, [reloadToken]);
+
+  const retryLoad = useCallback(() => {
+    setLoading(true);
+    setLoadError(undefined);
+    setReloadToken((n) => n + 1);
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchJobs()
+      .then((result) => {
+        setAllJobs(result.jobs);
+        setUsingSample(result.usingSampleData);
+      })
+      .finally(() => setRefreshing(false));
   }, []);
 
   useFocusEffect(
@@ -97,9 +125,9 @@ export default function HomeScreen({ navigation }: Props) {
   const safePage = Math.min(page, totalPages);
   const pageJobs = useMemo(() => paginate(filtered, safePage), [filtered, safePage]);
   const stats = useMemo(() => computeStats(allJobs), [allJobs]);
-  const jobsForYou = useMemo(() => {
+  const jobsForYou = useMemo((): RankedJob[] => {
     if (!isStudent || !profileComplete || !profile) return [];
-    return rankJobsForStudent(allJobs, profile).map((entry) => entry.job);
+    return rankJobsForStudent(allJobs, profile);
   }, [allJobs, isStudent, profile, profileComplete]);
 
   const onToggleSave = useCallback(async (job: Job) => {
@@ -139,14 +167,23 @@ export default function HomeScreen({ navigation }: Props) {
       {usingSample ? (
         <View style={styles.sampleBanner}>
           <Text style={styles.sampleText}>
-            Showing sample Vizag jobs — live Supabase listings unavailable right now.
+            Showing sample Vizag jobs — could not reach live listings
+            {loadError ? ` (${loadError})` : ''}. Check your internet connection, then retry.
           </Text>
+          <Pressable
+            onPress={retryLoad}
+            style={styles.retryBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading live jobs"
+          >
+            <Text style={styles.retryText}>Retry live jobs</Text>
+          </Pressable>
         </View>
       ) : null}
       {jobsForYou.length ? (
         <JobsForYouSection
-          jobs={jobsForYou}
-          onOpenJob={(job) => navigation.navigate('JobDetails', { job })}
+          rankedJobs={jobsForYou}
+          onOpenJob={(job) => navigation.navigate('JobDetails', { job, jobId: job.id })}
         />
       ) : null}
       <Text style={styles.sectionTitle}>Quick browse</Text>
@@ -231,11 +268,18 @@ export default function HomeScreen({ navigation }: Props) {
       <FlatList
         data={loading ? [] : pageJobs}
         keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
         renderItem={({ item }) => (
           <JobCard
             job={item}
             saved={savedIds.includes(item.id)}
-            onPress={() => navigation.navigate('JobDetails', { job: item })}
+            onPress={() => navigation.navigate('JobDetails', { job: item, jobId: item.id })}
             onToggleSave={() => onToggleSave(item)}
           />
         )}
@@ -274,8 +318,17 @@ const styles = StyleSheet.create({
     borderBottomColor: '#fde68a',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
+    gap: spacing.sm,
   },
   sampleText: { color: '#854d0e', fontSize: 12, fontWeight: '600' },
+  retryBtn: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#854d0e',
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  retryText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '800',

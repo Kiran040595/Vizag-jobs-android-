@@ -20,6 +20,7 @@ import {
   replyNotificationKindLabel,
   type ReplyNotification,
 } from '../services/replyNotifications';
+import { parseJobRouteIdentifier, parseQuestionIdFromPath } from '../lib/parseJobRouteIdentifier';
 import { colors, radius, spacing } from '../theme';
 
 type Props = CompositeScreenProps<
@@ -28,11 +29,11 @@ type Props = CompositeScreenProps<
 >;
 
 const LEGAL_LINKS = [
+  { label: 'Contact', url: 'https://jobsinvizag.in/contact' },
   { label: 'About Vizag Jobs', url: 'https://jobsinvizag.in/about' },
   { label: 'Privacy policy', url: 'https://jobsinvizag.in/privacy-policy' },
   { label: 'Terms of service', url: 'https://jobsinvizag.in/terms-of-service' },
   { label: 'Disclaimer', url: 'https://jobsinvizag.in/disclaimer' },
-  { label: 'Employer portal', url: 'https://jobsinvizag.in/employer/login' },
 ];
 
 export default function AccountScreen({ navigation }: Props) {
@@ -98,10 +99,29 @@ export default function AccountScreen({ navigation }: Props) {
         // ignore mark-read failures
       }
     }
+
     if (item.kind === 'application_status') {
-      navigation.navigate('StudentApplications');
+      navigation.navigate('StudentApplications', {
+        highlightApplicationId: item.refId || undefined,
+      });
       return;
     }
+
+    if (item.kind === 'site_feedback') {
+      navigation.navigate('Feedback');
+      return;
+    }
+
+    if (item.kind === 'job_question' || item.linkPath) {
+      const path = item.linkPath || '';
+      const jobId = parseJobRouteIdentifier(path) || item.refId || '';
+      const questionId = parseQuestionIdFromPath(path);
+      if (jobId) {
+        navigation.navigate('JobDetails', { jobId, questionId });
+        return;
+      }
+    }
+
     if (item.linkPath) {
       const url = item.linkPath.startsWith('http')
         ? item.linkPath
@@ -128,7 +148,8 @@ export default function AccountScreen({ navigation }: Props) {
         {!isSupabaseConfigured ? (
           <View style={styles.banner}>
             <Text style={styles.bannerText}>
-              Live auth needs Supabase credentials. Browsing jobs still works with sample data.
+              Supabase credentials are missing. Job browsing may use sample data until the app is
+              rebuilt with production settings.
             </Text>
           </View>
         ) : null}
@@ -153,6 +174,16 @@ export default function AccountScreen({ navigation }: Props) {
         >
           <Text style={styles.menuTitle}>Send feedback</Text>
           <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
+        </Pressable>
+
+        <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('EmployerLogin')}>
+          <Text style={styles.menuTitle}>Employer portal</Text>
+          <Text style={styles.menuBody}>Post jobs and review applicants in the app</Text>
+        </Pressable>
+
+        <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('AdminLogin')}>
+          <Text style={styles.menuTitle}>Admin login</Text>
+          <Text style={styles.menuBody}>Review employer-submitted jobs</Text>
         </Pressable>
 
         {LEGAL_LINKS.map((item) => (
@@ -214,6 +245,16 @@ export default function AccountScreen({ navigation }: Props) {
       >
         <Text style={styles.menuTitle}>Send feedback</Text>
         <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
+      </Pressable>
+
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('EmployerLogin')}>
+        <Text style={styles.menuTitle}>Employer portal</Text>
+        <Text style={styles.menuBody}>Post jobs and review applicants in the app</Text>
+      </Pressable>
+
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('AdminLogin')}>
+        <Text style={styles.menuTitle}>Admin login</Text>
+        <Text style={styles.menuBody}>Review employer-submitted jobs</Text>
       </Pressable>
 
       <View style={styles.notifHeader}>

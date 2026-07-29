@@ -9,13 +9,30 @@ export type MainTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
-  JobDetails: { job: Job };
+  /** Pass `job` when already loaded, or `jobId` (uuid/slug) to fetch. */
+  JobDetails: {
+    job?: Job;
+    jobId?: string;
+    questionId?: string;
+  };
   StudentLogin: { applyJobId?: string } | undefined;
   StudentRegister: { applyJobId?: string } | undefined;
   StudentForgotPassword: undefined;
   StudentResetPassword: undefined;
   StudentProfile: undefined;
-  StudentApplications: undefined;
+  StudentApplications: { highlightApplicationId?: string } | undefined;
   StudentApply: { jobId: string; job?: Job };
+  EmployerLogin: undefined;
+  EmployerRegister: undefined;
+  EmployerForgotPassword: undefined;
+  EmployerResetPassword: undefined;
+  EmployerHome: undefined;
+  EmployerProfile: undefined;
+  EmployerJobs: undefined;
+  EmployerJobForm: { jobId?: string } | undefined;
+  EmployerJobApplications: { jobId: string };
+  AdminLogin: undefined;
+  AdminHome: undefined;
+  AdminJobApplications: { jobId: string };
   Feedback: undefined;
 };

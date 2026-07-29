@@ -3,10 +3,18 @@ import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, type LinkingOptions } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  getStateFromPath as getStateFromPathDefault,
+  type LinkingOptions,
+} from '@react-navigation/native';
 import { colors } from './src/theme';
 import { StudentAuthProvider } from './src/context/StudentAuthContext';
+import { EmployerAuthProvider } from './src/context/EmployerAuthContext';
+import { AdminAuthProvider } from './src/context/AdminAuthContext';
 import { handleAuthDeepLink } from './src/lib/authDeepLink';
+import { parseJobRouteIdentifier } from './src/lib/parseJobRouteIdentifier';
 import RootNavigator from './src/navigation/RootNavigator';
 import type { RootStackParamList } from './src/navigation/types';
 
@@ -16,7 +24,12 @@ const navTheme = {
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [Linking.createURL('/'), 'vizagjobs://'],
+  prefixes: [
+    Linking.createURL('/'),
+    'vizagjobs://',
+    'https://jobsinvizag.in',
+    'https://www.jobsinvizag.in',
+  ],
   config: {
     screens: {
       MainTabs: {
@@ -26,6 +39,7 @@ const linking: LinkingOptions<RootStackParamList> = {
           Account: 'account',
         },
       },
+      JobDetails: 'job/:jobId',
       StudentLogin: 'student/login',
       StudentRegister: 'student/register',
       StudentForgotPassword: 'student/forgot-password',
@@ -33,8 +47,33 @@ const linking: LinkingOptions<RootStackParamList> = {
       StudentProfile: 'student/profile',
       StudentApplications: 'student/applied-jobs',
       StudentApply: 'student/apply/:jobId',
+      EmployerLogin: 'employer/login',
+      EmployerRegister: 'employer/register',
+      EmployerForgotPassword: 'employer/forgot-password',
+      EmployerResetPassword: 'employer/reset-password',
+      EmployerHome: 'employer/home',
+      EmployerProfile: 'employer/profile',
+      EmployerJobs: 'employer/jobs',
+      EmployerJobForm: 'employer/jobs/form/:jobId?',
+      EmployerJobApplications: 'employer/jobs/:jobId/applications',
+      AdminLogin: 'admin/login',
+      AdminHome: 'admin/home',
+      AdminJobApplications: 'admin/jobs/:jobId/applications',
       Feedback: 'feedback',
     },
+  },
+  getStateFromPath(path, options) {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    const jobId = parseJobRouteIdentifier(normalized.split('?')[0] || normalized);
+    if (jobId) {
+      return {
+        routes: [
+          { name: 'MainTabs' },
+          { name: 'JobDetails', params: { jobId } },
+        ],
+      };
+    }
+    return getStateFromPathDefault(path, options);
   },
 };
 
@@ -58,10 +97,14 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StudentAuthProvider>
-        <NavigationContainer theme={navTheme} linking={linking}>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </NavigationContainer>
+        <EmployerAuthProvider>
+          <AdminAuthProvider>
+            <NavigationContainer theme={navTheme} linking={linking}>
+              <StatusBar style="light" />
+              <RootNavigator />
+            </NavigationContainer>
+          </AdminAuthProvider>
+        </EmployerAuthProvider>
       </StudentAuthProvider>
     </SafeAreaProvider>
   );

@@ -24,10 +24,21 @@ logic.
 - On-platform **Apply** for internal jobs, with cover note + resume
 - **Applied jobs** status tracking (`job_applications`)
 - Jobs for you (profile-based matching), freshness filters, pagination
-- Share jobs, similar jobs, Q&A, reply notifications, site feedback
+- Share jobs, similar jobs, Q&A (including guest ask), reply notifications, site feedback
+- Deep links to job detail (`/jobs/...`, `/job/...`) + in-app notification navigation
+- Structured job descriptions, source attribution, expired-listing handling
+- Pull-to-refresh on Jobs / Saved / Applied
 - External apply channel prompt + post-apply group link
 - Bottom tabs: Jobs · Saved · Account
-- Employer / admin: open on the website (jobsinvizag.in)
+
+## Features (v3 — employer + admin mobile portals)
+
+- Employer registration, sign-in, password reset, and company profile management
+- Submit and edit jobs for admin review, with internal or external apply modes
+- Track job approval status and applicant counts
+- Review applicant contact details and resumes, then update application status
+- Admin mobile review queue to approve or reject employer-submitted jobs
+- Admin access to job applications; the full CMS remains available on the web
 
 Data comes from the same Supabase `jobs` project as
 [jobsinvizag.in](https://jobsinvizag.in). Credentials default to that production
@@ -68,15 +79,25 @@ npm run build:apk  # build a debug APK (output in android/app/build/outputs/apk/
 ### Supabase (live Vizag Jobs data)
 
 The app is wired to the production Vizag Jobs Supabase project by default
-(same as `VITE_SUPABASE_*` on jobsinvizag.in). Copy `.env.example` to `.env` to
-override:
+(same as `VITE_SUPABASE_*` on jobsinvizag.in). Credentials are embedded in the
+client and also listed in `.env.example`.
+
+**Important for APK builds:** run `npm run build:apk` (not a raw Gradle command).
+That script copies `.env.example` → `.env` when needed, rejects README
+placeholders like `<anon-key>`, and produces a sideloadable APK with the JS
+bundle embedded so live jobs load without Metro.
+
+To override the project, copy `.env.example` to `.env` and edit:
 
 ```
 EXPO_PUBLIC_SUPABASE_URL=https://fbyyfyhdglcpkhxskffj.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<paste the anon key from .env.example>
 EXPO_PUBLIC_SUPABASE_JOBS_TABLE=jobs
 ```
 
+Do not leave angle-bracket placeholders in `.env` — they are ignored and the
+app falls back to the production key, but a bad non-placeholder key will break
+live fetches and show sample jobs instead.
 ## Scripts
 
 | Command | Description |
@@ -84,7 +105,7 @@ EXPO_PUBLIC_SUPABASE_JOBS_TABLE=jobs
 | `npm run setup` | Full environment bootstrap (deps + SDK + prebuild) |
 | `npm run web` / `android` / `ios` | Start the app on a target platform |
 | `npm run prebuild:android` | Generate native `android/` project from Expo config |
-| `npm run build:apk` | Build a debug APK with Gradle |
+| `npm run build:apk` | Build a sideloadable APK with live Supabase env + embedded JS |
 | `npm run lint` | ESLint (expo config) |
 | `npm run typecheck` | TypeScript (`tsc --noEmit`) |
 | `npm test` | Jest unit tests (filter/pagination logic) |

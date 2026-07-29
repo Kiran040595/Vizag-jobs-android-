@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -17,14 +17,18 @@ type Props = CompositeScreenProps<
 
 export default function SavedJobsScreen({ navigation }: Props) {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const refresh = useCallback(() => {
-    getSavedJobs().then(setJobs);
+  const refresh = useCallback(async (mode: 'focus' | 'pull' = 'focus') => {
+    if (mode === 'pull') setRefreshing(true);
+    const next = await getSavedJobs();
+    setJobs(next);
+    setRefreshing(false);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      refresh();
+      void refresh('focus');
     }, [refresh]),
   );
 
@@ -39,11 +43,18 @@ export default function SavedJobsScreen({ navigation }: Props) {
         data={jobs}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void refresh('pull')}
+            tintColor={colors.primary}
+          />
+        }
         renderItem={({ item }) => (
           <JobCard
             job={item}
             saved
-            onPress={() => navigation.navigate('JobDetails', { job: item })}
+            onPress={() => navigation.navigate('JobDetails', { job: item, jobId: item.id })}
             onToggleSave={() => onToggleSave(item)}
           />
         )}
