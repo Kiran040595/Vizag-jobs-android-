@@ -10,9 +10,12 @@ import AccountScreen from '../screens/AccountScreen';
 import JobDetailsScreen from '../screens/JobDetailsScreen';
 import StudentLoginScreen from '../screens/StudentLoginScreen';
 import StudentRegisterScreen from '../screens/StudentRegisterScreen';
+import StudentForgotPasswordScreen from '../screens/StudentForgotPasswordScreen';
+import StudentResetPasswordScreen from '../screens/StudentResetPasswordScreen';
 import StudentProfileScreen from '../screens/StudentProfileScreen';
 import StudentApplicationsScreen from '../screens/StudentApplicationsScreen';
 import StudentApplyScreen from '../screens/StudentApplyScreen';
+import FeedbackScreen from '../screens/FeedbackScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -63,6 +66,16 @@ export default function RootNavigator() {
         component={StudentRegisterScreen}
         options={{ title: 'Create account' }}
       />
+      <Stack.Screen
+        name="StudentForgotPassword"
+        component={StudentForgotPasswordScreen}
+        options={{ title: 'Forgot password' }}
+      />
+      <Stack.Screen
+        name="StudentResetPassword"
+        component={StudentResetPasswordScreen}
+        options={{ title: 'Reset password' }}
+      />
       <Stack.Screen name="StudentProfile" component={StudentProfileScreen} options={{ title: 'Profile' }} />
       <Stack.Screen
         name="StudentApplications"
@@ -70,6 +83,7 @@ export default function RootNavigator() {
         options={{ title: 'Applied jobs' }}
       />
       <Stack.Screen name="StudentApply" component={StudentApplyScreen} options={{ title: 'Apply' }} />
+      <Stack.Screen name="Feedback" component={FeedbackScreen} options={{ title: 'Feedback' }} />
     </Stack.Navigator>
   );
 }

@@ -39,6 +39,7 @@ type StudentAuthContextValue = {
     profile: StudentProfileInput;
     consents: StudentConsents;
   }) => Promise<unknown>;
+  updatePassword: (password: string) => Promise<void>;
   user: User | null;
 };
 
@@ -324,7 +325,19 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
   const requestPasswordReset = useCallback(async (identifier: string) => {
     if (!supabase) throw new Error('Supabase is not configured.');
     const loginEmail = await resolveStudentLoginEmail(supabase, identifier);
-    const { error } = await supabase.auth.resetPasswordForEmail(loginEmail);
+    const { error } = await supabase.auth.resetPasswordForEmail(loginEmail, {
+      redirectTo: 'vizagjobs://student/reset-password',
+    });
+    if (error) throw error;
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (!supabase) throw new Error('Supabase is not configured.');
+    const nextPassword = String(password || '');
+    if (nextPassword.length < 6) {
+      throw new Error('Password must be at least 6 characters.');
+    }
+    const { error } = await supabase.auth.updateUser({ password: nextPassword });
     if (error) throw error;
   }, []);
 
@@ -343,6 +356,7 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       signIn,
       signOut,
       signUp,
+      updatePassword,
       user: session?.user ?? null,
     }),
     [
@@ -358,6 +372,7 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       signIn,
       signOut,
       signUp,
+      updatePassword,
     ],
   );
 

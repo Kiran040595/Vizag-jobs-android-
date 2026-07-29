@@ -4,7 +4,9 @@ import {
   formatApplicationStatus,
   normalizeApplicationStatus,
 } from '../lib/applicationStatus';
+import type { ResumeFileLike } from '../lib/studentResumeFile';
 import { fetchStudentProfile } from './studentJobs';
+import { saveResumePathOnProfile, uploadStudentResume } from './studentResume';
 
 const APPLICATION_COLUMNS = `
   id,
@@ -141,9 +143,13 @@ export const fetchMyApplications = async (): Promise<JobApplication[]> => {
 export const submitJobApplication = async ({
   jobId,
   coverNote,
+  resumeFile,
+  existingResumePath,
 }: {
   jobId: string;
   coverNote?: string;
+  resumeFile?: ResumeFileLike | null;
+  existingResumePath?: string | null;
 }): Promise<JobApplication> => {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error('Supabase is not configured.');
@@ -162,8 +168,17 @@ export const submitJobApplication = async ({
     throw new Error('Complete your student profile before applying.');
   }
 
+  let resumePath = '';
+  if (resumeFile) {
+    resumePath = await uploadStudentResume(resumeFile, user.id);
+    await saveResumePathOnProfile(resumePath);
+  } else if (existingResumePath) {
+    resumePath = existingResumePath;
+  } else if (profile.resume_path) {
+    resumePath = String(profile.resume_path);
+  }
+
   const trimmedCover = String(coverNote || '').trim();
-  const resumePath = profile.resume_path ? String(profile.resume_path) : null;
 
   const { data, error } = await supabase
     .from('job_applications')
@@ -171,7 +186,7 @@ export const submitJobApplication = async ({
       job_id: jobId,
       student_user_id: user.id,
       cover_note: trimmedCover || null,
-      resume_path: resumePath,
+      resume_path: resumePath || null,
       profile_snapshot: buildProfileSnapshot(profile),
       status: 'applied',
     })

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,6 +12,10 @@ import {
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import FormField from '../components/FormField';
 import { useStudentAuth } from '../context/StudentAuthContext';
+import {
+  getPendingApplyJobId,
+  setPendingApplyJobId,
+} from '../lib/studentApplyRedirect';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme';
 
@@ -24,6 +28,21 @@ export default function StudentLoginScreen({ navigation, route }: Props) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (route.params?.applyJobId) {
+      void setPendingApplyJobId(route.params.applyJobId);
+    }
+  }, [route.params?.applyJobId]);
+
+  const continueAfterAuth = async () => {
+    const applyJobId = route.params?.applyJobId || (await getPendingApplyJobId());
+    if (applyJobId) {
+      navigation.replace('StudentApply', { jobId: applyJobId });
+      return;
+    }
+    navigation.goBack();
+  };
+
   const onSubmit = async () => {
     setError('');
     if (!isSupabaseConfigured) {
@@ -33,12 +52,7 @@ export default function StudentLoginScreen({ navigation, route }: Props) {
     setSubmitting(true);
     try {
       await signIn({ identifier, password });
-      const applyJobId = route.params?.applyJobId;
-      if (applyJobId) {
-        navigation.replace('StudentApply', { jobId: applyJobId });
-      } else {
-        navigation.goBack();
-      }
+      await continueAfterAuth();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not sign in.');
     } finally {
@@ -96,6 +110,14 @@ export default function StudentLoginScreen({ navigation, route }: Props) {
           ) : (
             <Text style={styles.primaryText}>Sign in</Text>
           )}
+        </Pressable>
+
+        <Pressable
+          onPress={() => navigation.navigate('StudentForgotPassword')}
+          style={styles.linkBtn}
+          accessibilityRole="button"
+        >
+          <Text style={styles.linkText}>Forgot password?</Text>
         </Pressable>
 
         <Pressable

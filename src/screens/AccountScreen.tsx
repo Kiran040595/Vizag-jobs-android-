@@ -1,16 +1,39 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
+import {
+  fetchReplyNotifications,
+  formatReplyNotificationTime,
+  markReplyNotificationRead,
+  replyNotificationKindLabel,
+  type ReplyNotification,
+} from '../services/replyNotifications';
 import { colors, radius, spacing } from '../theme';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<MainTabParamList, 'Account'>,
   NativeStackScreenProps<RootStackParamList>
 >;
+
+const LEGAL_LINKS = [
+  { label: 'About Vizag Jobs', url: 'https://jobsinvizag.in/about' },
+  { label: 'Privacy policy', url: 'https://jobsinvizag.in/privacy-policy' },
+  { label: 'Terms of service', url: 'https://jobsinvizag.in/terms-of-service' },
+  { label: 'Disclaimer', url: 'https://jobsinvizag.in/disclaimer' },
+  { label: 'Employer portal', url: 'https://jobsinvizag.in/employer/login' },
+];
 
 export default function AccountScreen({ navigation }: Props) {
   const {
@@ -24,11 +47,29 @@ export default function AccountScreen({ navigation }: Props) {
   } = useStudentAuth();
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState('');
+  const [notifications, setNotifications] = useState<ReplyNotification[]>([]);
 
   useFocusEffect(
     useCallback(() => {
+      let active = true;
       setError('');
-    }, []),
+      if (session?.user?.id && isStudent) {
+        void fetchReplyNotifications(session.user.id)
+          .then((rows) => {
+            if (active) setNotifications(rows);
+          })
+          .catch(() => {
+            if (active) setNotifications([]);
+          });
+      } else if (active) {
+        queueMicrotask(() => {
+          if (active) setNotifications([]);
+        });
+      }
+      return () => {
+        active = false;
+      };
+    }, [session, isStudent]),
   );
 
   const onSignOut = async () => {
@@ -40,6 +81,32 @@ export default function AccountScreen({ navigation }: Props) {
       setError(err instanceof Error ? err.message : 'Could not sign out.');
     } finally {
       setSigningOut(false);
+    }
+  };
+
+  const onOpenNotification = async (item: ReplyNotification) => {
+    if (session?.user?.id && !item.isRead) {
+      try {
+        await markReplyNotificationRead({
+          notificationId: item.id,
+          userId: session.user.id,
+        });
+        setNotifications((prev) =>
+          prev.map((row) => (row.id === item.id ? { ...row, isRead: true } : row)),
+        );
+      } catch {
+        // ignore mark-read failures
+      }
+    }
+    if (item.kind === 'application_status') {
+      navigation.navigate('StudentApplications');
+      return;
+    }
+    if (item.linkPath) {
+      const url = item.linkPath.startsWith('http')
+        ? item.linkPath
+        : `https://jobsinvizag.in${item.linkPath}`;
+      void Linking.openURL(url);
     }
   };
 
@@ -79,9 +146,29 @@ export default function AccountScreen({ navigation }: Props) {
         >
           <Text style={styles.secondaryText}>Create student account</Text>
         </Pressable>
+
+        <Pressable
+          style={[styles.menuBtn, { marginTop: spacing.xl }]}
+          onPress={() => navigation.navigate('Feedback')}
+        >
+          <Text style={styles.menuTitle}>Send feedback</Text>
+          <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
+        </Pressable>
+
+        {LEGAL_LINKS.map((item) => (
+          <Pressable
+            key={item.url}
+            style={styles.linkRow}
+            onPress={() => Linking.openURL(item.url)}
+          >
+            <Text style={styles.linkText}>{item.label}</Text>
+          </Pressable>
+        ))}
       </ScrollView>
     );
   }
+
+  const unreadCount = notifications.filter((item) => !item.isRead).length;
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -108,7 +195,7 @@ export default function AccountScreen({ navigation }: Props) {
         accessibilityRole="button"
       >
         <Text style={styles.menuTitle}>Edit profile</Text>
-        <Text style={styles.menuBody}>Education, skills, and career preferences</Text>
+        <Text style={styles.menuBody}>Education, skills, resume, and career preferences</Text>
       </Pressable>
 
       <Pressable
@@ -119,6 +206,42 @@ export default function AccountScreen({ navigation }: Props) {
         <Text style={styles.menuTitle}>Applied jobs</Text>
         <Text style={styles.menuBody}>Track application status from employers</Text>
       </Pressable>
+
+      <Pressable
+        style={styles.menuBtn}
+        onPress={() => navigation.navigate('Feedback')}
+        accessibilityRole="button"
+      >
+        <Text style={styles.menuTitle}>Send feedback</Text>
+        <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
+      </Pressable>
+
+      <View style={styles.notifHeader}>
+        <Text style={styles.sectionTitle}>Notifications</Text>
+        {unreadCount ? <Text style={styles.badge}>{unreadCount} new</Text> : null}
+      </View>
+      {notifications.length === 0 ? (
+        <Text style={styles.emptyNotif}>No notifications yet.</Text>
+      ) : (
+        notifications.slice(0, 8).map((item) => (
+          <Pressable
+            key={item.id}
+            style={[styles.notifCard, !item.isRead && styles.notifUnread]}
+            onPress={() => onOpenNotification(item)}
+          >
+            <Text style={styles.notifKind}>{replyNotificationKindLabel(item.kind)}</Text>
+            <Text style={styles.notifTitle}>{item.title}</Text>
+            {item.preview ? <Text style={styles.notifPreview}>{item.preview}</Text> : null}
+            <Text style={styles.notifTime}>{formatReplyNotificationTime(item.createdAt)}</Text>
+          </Pressable>
+        ))
+      )}
+
+      {LEGAL_LINKS.map((item) => (
+        <Pressable key={item.url} style={styles.linkRow} onPress={() => Linking.openURL(item.url)}>
+          <Text style={styles.linkText}>{item.label}</Text>
+        </Pressable>
+      ))}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -142,7 +265,12 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   content: { padding: spacing.lg, paddingBottom: spacing.xxl, backgroundColor: colors.bg },
   title: { fontSize: 24, fontWeight: '900', color: colors.text },
-  subtitle: { marginTop: spacing.sm, marginBottom: spacing.xl, color: colors.textMuted, lineHeight: 20 },
+  subtitle: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
+    color: colors.textMuted,
+    lineHeight: 20,
+  },
   banner: {
     backgroundColor: '#fef9c3',
     borderColor: '#fde68a',
@@ -191,6 +319,45 @@ const styles = StyleSheet.create({
   },
   menuTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
   menuBody: { marginTop: spacing.xs, color: colors.textMuted },
+  notifHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
+  badge: {
+    backgroundColor: colors.primary,
+    color: colors.white,
+    overflow: 'hidden',
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  emptyNotif: { color: colors.textMuted, marginBottom: spacing.lg },
+  notifCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  notifUnread: { borderColor: colors.blueSoftBorder, backgroundColor: colors.blueSoft },
+  notifKind: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: colors.textSubtle,
+    textTransform: 'uppercase',
+  },
+  notifTitle: { marginTop: 4, fontWeight: '800', color: colors.text },
+  notifPreview: { marginTop: 4, color: colors.textMuted },
+  notifTime: { marginTop: 6, fontSize: 11, color: colors.textSubtle },
+  linkRow: { paddingVertical: spacing.sm },
+  linkText: { color: colors.primary, fontWeight: '700' },
   error: { color: '#be123c', fontWeight: '600', marginBottom: spacing.md },
   signOutBtn: {
     marginTop: spacing.lg,

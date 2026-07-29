@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -14,6 +16,10 @@ import FormField from '../components/FormField';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import { applyButtonLabel, isInternalApplyJob } from '../lib/jobApplyMode';
 import { formatApplicationStatus } from '../lib/applicationStatus';
+import { getJobGroupLink } from '../lib/jobGroupLink';
+import { pickResumeDocument } from '../lib/pickResumeDocument';
+import { clearPendingApplyJobId, setPendingApplyJobId } from '../lib/studentApplyRedirect';
+import { resumeFileDisplayName, type ResumeFileLike } from '../lib/studentResumeFile';
 import type { RootStackParamList } from '../navigation/types';
 import type { Job } from '../types';
 import {
@@ -22,7 +28,7 @@ import {
   submitJobApplication,
   type JobApplication,
 } from '../services/jobApplications';
-import { fetchJobs } from '../services/jobs';
+import { fetchJobById, fetchJobs } from '../services/jobs';
 import { colors, radius, spacing } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StudentApply'>;
@@ -33,28 +39,40 @@ export default function StudentApplyScreen({ navigation, route }: Props) {
   const [job, setJob] = useState<Job | null>(route.params.job ?? null);
   const [existing, setExisting] = useState<JobApplication | null>(null);
   const [coverNote, setCoverNote] = useState('');
+  const [useSavedResume, setUseSavedResume] = useState(() => Boolean(profile?.resume_path));
+  const [resumeFile, setResumeFile] = useState<ResumeFileLike | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
 
   useEffect(() => {
     if (!session || !isStudent) {
       navigation.replace('StudentLogin', { applyJobId: jobId });
+      return;
     }
-  }, [session, isStudent, navigation, jobId]);
+    if (session && isStudent && !profileComplete) {
+      void setPendingApplyJobId(jobId);
+      navigation.replace('StudentProfile');
+    }
+  }, [session, isStudent, profileComplete, navigation, jobId]);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
-        const [jobsResult, application] = await Promise.all([
+        const [detail, jobsResult, application] = await Promise.all([
+          fetchJobById(jobId),
           route.params.job ? Promise.resolve({ jobs: [route.params.job] }) : fetchJobs(),
           fetchMyApplicationForJob(jobId),
         ]);
         if (!active) return;
         const found =
-          jobsResult.jobs.find((item) => item.id === jobId) || route.params.job || null;
+          detail ||
+          jobsResult.jobs.find((item) => item.id === jobId) ||
+          route.params.job ||
+          null;
         setJob(found);
         setExisting(application);
         setError(found ? '' : 'Could not find this job.');
@@ -71,6 +89,18 @@ export default function StudentApplyScreen({ navigation, route }: Props) {
     };
   }, [jobId, route.params.job]);
 
+  const onPickResume = async () => {
+    setError('');
+    try {
+      const file = await pickResumeDocument();
+      if (!file) return;
+      setResumeFile(file);
+      setUseSavedResume(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not select resume.');
+    }
+  };
+
   const onSubmit = async () => {
     setError('');
     setNotice('');
@@ -84,11 +114,23 @@ export default function StudentApplyScreen({ navigation, route }: Props) {
     }
     setSubmitting(true);
     try {
-      await submitJobApplication({ jobId, coverNote });
+      await submitJobApplication({
+        jobId,
+        coverNote,
+        resumeFile: useSavedResume ? null : resumeFile,
+        existingResumePath: useSavedResume
+          ? String(profile?.resume_path || mappedProfile?.resumePath || '')
+          : null,
+      });
+      await clearPendingApplyJobId();
       setNotice('Your application was submitted successfully.');
-      setTimeout(() => {
-        navigation.replace('StudentApplications');
-      }, 900);
+      if (getJobGroupLink(job)) {
+        setSuccessModalVisible(true);
+      } else {
+        setTimeout(() => {
+          navigation.replace('StudentApplications');
+        }, 900);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not submit your application.');
     } finally {
@@ -103,6 +145,8 @@ export default function StudentApplyScreen({ navigation, route }: Props) {
       </View>
     );
   }
+
+  const groupLink = getJobGroupLink(job);
 
   return (
     <KeyboardAvoidingView
@@ -119,7 +163,8 @@ export default function StudentApplyScreen({ navigation, route }: Props) {
         {existing ? (
           <View style={styles.existing}>
             <Text style={styles.existingTitle}>
-              You already applied{existing.submittedAt ? ` on ${formatApplicationTime(existing.submittedAt)}` : ''}.
+              You already applied
+              {existing.submittedAt ? ` on ${formatApplicationTime(existing.submittedAt)}` : ''}.
             </Text>
             <Text style={styles.existingBody}>
               Current status: {formatApplicationStatus(existing.status)}
@@ -180,6 +225,33 @@ export default function StudentApplyScreen({ navigation, route }: Props) {
               placeholder="Briefly explain why you are a good fit."
             />
 
+            <Text style={styles.resumeLabel}>Resume (optional)</Text>
+            {profile?.resume_path || mappedProfile?.resumePath ? (
+              <Pressable
+                style={[styles.resumeOption, useSavedResume && styles.resumeOptionActive]}
+                onPress={() => {
+                  setUseSavedResume(true);
+                  setResumeFile(null);
+                }}
+              >
+                <Text style={styles.resumeOptionText}>
+                  Use saved resume (
+                  {resumeFileDisplayName(
+                    String(profile?.resume_path || mappedProfile?.resumePath || ''),
+                  )}
+                  )
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={[styles.resumeOption, !useSavedResume && styles.resumeOptionActive]}
+              onPress={onPickResume}
+            >
+              <Text style={styles.resumeOptionText}>
+                {resumeFile ? `Selected: ${resumeFile.name}` : 'Upload a different resume'}
+              </Text>
+            </Pressable>
+
             {error ? <Text style={styles.error}>{error}</Text> : null}
             {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
@@ -197,6 +269,37 @@ export default function StudentApplyScreen({ navigation, route }: Props) {
           </View>
         )}
       </ScrollView>
+
+      <Modal visible={successModalVisible} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Application submitted</Text>
+            <Text style={styles.modalBody}>
+              Join the job updates group to stay connected with recruiters.
+            </Text>
+            {groupLink ? (
+              <Pressable
+                style={styles.primaryBtn}
+                onPress={() => {
+                  setSuccessModalVisible(false);
+                  void Linking.openURL(groupLink);
+                  navigation.replace('StudentApplications');
+                }}
+              >
+                <Text style={styles.primaryText}>Open group link</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={() => {
+                setSuccessModalVisible(false);
+                navigation.replace('StudentApplications');
+              }}
+            >
+              <Text style={styles.link}>View applied jobs</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -250,6 +353,26 @@ const styles = StyleSheet.create({
   },
   metaValue: { marginTop: 4, color: colors.text, fontWeight: '600' },
   coverNote: { minHeight: 110, textAlignVertical: 'top' },
+  resumeLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  resumeOption: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.bg,
+  },
+  resumeOptionActive: {
+    borderColor: colors.blueSoftBorder,
+    backgroundColor: colors.blueSoft,
+  },
+  resumeOptionText: { color: colors.text, fontWeight: '600' },
   error: {
     backgroundColor: '#fff1f2',
     borderColor: '#fecdd3',
@@ -279,5 +402,26 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.7 },
   primaryText: { color: colors.white, fontWeight: '800', fontSize: 16 },
-  link: { color: colors.primary, fontWeight: '800', marginTop: spacing.sm },
+  link: {
+    color: colors.primary,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '900', color: colors.text },
+  modalBody: { color: colors.textMuted, lineHeight: 20 },
 });

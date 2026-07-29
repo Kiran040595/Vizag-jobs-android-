@@ -19,6 +19,12 @@ import {
   STUDENT_PREFERRED_LOCATION_OPTIONS,
   STUDENT_ROLE_EXPERIENCE_OPTIONS,
 } from '../lib/studentCareerPreferences';
+import { pickResumeDocument } from '../lib/pickResumeDocument';
+import {
+  clearPendingApplyJobId,
+  getPendingApplyJobId,
+} from '../lib/studentApplyRedirect';
+import { resumeFileDisplayName, type ResumeFileLike } from '../lib/studentResumeFile';
 import {
   STUDENT_BRANCH_OPTIONS,
   STUDENT_DEGREE_OPTIONS,
@@ -27,6 +33,7 @@ import {
 } from '../lib/studentProfileOptions';
 import type { RootStackParamList } from '../navigation/types';
 import { upsertStudentProfile } from '../services/studentJobs';
+import { saveResumePathOnProfile, uploadStudentResume } from '../services/studentResume';
 import { colors, radius, spacing } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StudentProfile'>;
@@ -50,9 +57,12 @@ export default function StudentProfileScreen({ navigation }: Props) {
   const [locations, setLocations] = useState<string[]>([]);
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
+  const [resumePath, setResumePath] = useState<string | null>(null);
+  const [pendingResume, setPendingResume] = useState<ResumeFileLike | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
 
   useEffect(() => {
     if (!isStudent) {
@@ -93,6 +103,8 @@ export default function StudentProfileScreen({ navigation }: Props) {
       );
       setSalaryMin(profile.expected_salary_min ? String(profile.expected_salary_min) : '');
       setSalaryMax(profile.expected_salary_max ? String(profile.expected_salary_max) : '');
+      setResumePath(profile.resume_path ? String(profile.resume_path) : null);
+      setPendingResume(null);
     });
     return () => {
       active = false;
@@ -115,6 +127,38 @@ export default function StudentProfileScreen({ navigation }: Props) {
     () => STUDENT_AVAILABILITY_OPTIONS.map((item) => ({ value: item.value, label: item.label })),
     [],
   );
+
+  const onPickResume = async () => {
+    setError('');
+    setNotice('');
+    try {
+      const file = await pickResumeDocument();
+      if (!file) return;
+      setPendingResume(file);
+      setNotice(`Selected ${file.name}. Save profile to upload.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not select resume.');
+    }
+  };
+
+  const onUploadResumeNow = async () => {
+    if (!pendingResume || !session?.user?.id) return;
+    setError('');
+    setNotice('');
+    setUploadingResume(true);
+    try {
+      const path = await uploadStudentResume(pendingResume, session.user.id);
+      await saveResumePathOnProfile(path);
+      setResumePath(path);
+      setPendingResume(null);
+      await refreshStudentAccess(session.user.id);
+      setNotice('Resume uploaded.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not upload resume.');
+    } finally {
+      setUploadingResume(false);
+    }
+  };
 
   const onSave = async () => {
     setError('');
@@ -140,8 +184,21 @@ export default function StudentProfileScreen({ navigation }: Props) {
         expected_salary_max: salaryMax || null,
         contact_email: String(profile?.contact_email || user?.email || ''),
       });
+      if (pendingResume && session?.user?.id) {
+        const path = await uploadStudentResume(pendingResume, session.user.id);
+        await saveResumePathOnProfile(path);
+        setResumePath(path);
+        setPendingResume(null);
+      }
       if (session?.user?.id) {
         await refreshStudentAccess(session.user.id);
+      }
+      const pendingApplyId = await getPendingApplyJobId();
+      if (pendingApplyId) {
+        await clearPendingApplyJobId();
+        setNotice('Profile saved. Continuing to apply…');
+        navigation.replace('StudentApply', { jobId: pendingApplyId });
+        return;
       }
       setNotice('Profile saved.');
     } catch (err) {
@@ -239,6 +296,35 @@ export default function StudentProfileScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <Text style={styles.chipLabel}>Resume (PDF / Word, max 5 MB)</Text>
+        <View style={styles.resumeBox}>
+          <Text style={styles.resumeMeta}>
+            {pendingResume
+              ? `Selected: ${pendingResume.name}`
+              : resumePath
+                ? `Saved: ${resumeFileDisplayName(resumePath)}`
+                : 'No resume uploaded yet.'}
+          </Text>
+          <View style={styles.resumeActions}>
+            <Pressable style={styles.secondaryBtn} onPress={onPickResume}>
+              <Text style={styles.secondaryText}>Choose file</Text>
+            </Pressable>
+            {pendingResume ? (
+              <Pressable
+                style={[styles.secondaryBtn, uploadingResume && styles.disabled]}
+                onPress={onUploadResumeNow}
+                disabled={uploadingResume}
+              >
+                {uploadingResume ? (
+                  <ActivityIndicator color={colors.primary} />
+                ) : (
+                  <Text style={styles.secondaryText}>Upload now</Text>
+                )}
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
@@ -272,6 +358,28 @@ const styles = StyleSheet.create({
   },
   salaryRow: { flexDirection: 'row', gap: spacing.md },
   salaryHalf: { flex: 1 },
+  resumeBox: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  resumeMeta: { color: colors.textMuted, fontWeight: '600', marginBottom: spacing.sm },
+  resumeActions: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  secondaryBtn: {
+    borderWidth: 1,
+    borderColor: colors.blueSoftBorder,
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryText: { color: colors.primaryDark, fontWeight: '800' },
   error: {
     backgroundColor: '#fff1f2',
     borderColor: '#fecdd3',

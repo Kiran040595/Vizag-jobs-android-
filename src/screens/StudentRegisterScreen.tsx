@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -20,6 +20,10 @@ import {
   STUDENT_ROLE_EXPERIENCE_OPTIONS,
 } from '../lib/studentCareerPreferences';
 import { EMPTY_STUDENT_CONSENTS } from '../lib/studentConsent';
+import {
+  getPendingApplyJobId,
+  setPendingApplyJobId,
+} from '../lib/studentApplyRedirect';
 import {
   STUDENT_BRANCH_OPTIONS,
   STUDENT_DEGREE_OPTIONS,
@@ -55,6 +59,12 @@ export default function StudentRegisterScreen({ navigation, route }: Props) {
   const [consents, setConsents] = useState({ ...EMPTY_STUDENT_CONSENTS });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (route.params?.applyJobId) {
+      void setPendingApplyJobId(route.params.applyJobId);
+    }
+  }, [route.params?.applyJobId]);
 
   const skillOptions = useMemo(
     () => STUDENT_SKILL_OPTIONS.map((item) => ({ value: item.value, label: item.label })),
@@ -110,7 +120,7 @@ export default function StudentRegisterScreen({ navigation, route }: Props) {
           contact_email: email,
         },
       });
-      const applyJobId = route.params?.applyJobId;
+      const applyJobId = route.params?.applyJobId || (await getPendingApplyJobId());
       if (applyJobId) {
         navigation.replace('StudentApply', { jobId: applyJobId });
       } else {

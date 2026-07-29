@@ -19,10 +19,15 @@ logic.
 ## Features (v2 — student account)
 
 - Student sign-in / registration (same Supabase auth + `student_profiles` as the web app)
-- Complete profile (education, skills, career preferences, consents)
-- On-platform **Apply** for internal jobs, with cover note
+- Forgot / reset password (deep link `vizagjobs://student/reset-password`)
+- Complete profile (education, skills, career preferences, consents, resume upload)
+- On-platform **Apply** for internal jobs, with cover note + resume
 - **Applied jobs** status tracking (`job_applications`)
+- Jobs for you (profile-based matching), freshness filters, pagination
+- Share jobs, similar jobs, Q&A, reply notifications, site feedback
+- External apply channel prompt + post-apply group link
 - Bottom tabs: Jobs · Saved · Account
+- Employer / admin: open on the website (jobsinvizag.in)
 
 Data comes from the same Supabase `jobs` project as
 [jobsinvizag.in](https://jobsinvizag.in). Credentials default to that production

@@ -12,7 +12,10 @@ export type RootStackParamList = {
   JobDetails: { job: Job };
   StudentLogin: { applyJobId?: string } | undefined;
   StudentRegister: { applyJobId?: string } | undefined;
+  StudentForgotPassword: undefined;
+  StudentResetPassword: undefined;
   StudentProfile: undefined;
   StudentApplications: undefined;
   StudentApply: { jobId: string; job?: Job };
+  Feedback: undefined;
 };
