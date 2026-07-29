@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Job } from '../types';
 import { colors, radius, spacing } from '../theme';
@@ -58,14 +58,21 @@ export default function JobCard({ job, saved, onPress, onToggleSave }: Props) {
         ) : null}
       </View>
 
-      <Text style={styles.title} numberOfLines={2}>
-        {job.title}
-      </Text>
-      {job.company ? (
-        <Text style={styles.company} numberOfLines={1}>
-          {job.company}
-        </Text>
-      ) : null}
+      <View style={styles.titleRow}>
+        {job.companyLogoUrl ? (
+          <Image source={{ uri: job.companyLogoUrl }} style={styles.logo} />
+        ) : null}
+        <View style={styles.titleCol}>
+          <Text style={styles.title} numberOfLines={2}>
+            {job.title}
+          </Text>
+          {job.company ? (
+            <Text style={styles.company} numberOfLines={1}>
+              {job.company}
+            </Text>
+          ) : null}
+        </View>
+      </View>
 
       <View style={styles.highlights}>
         {job.location ? <Highlight label="Location" value={job.location} /> : null}
@@ -137,7 +144,17 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   newText: { color: '#166534', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  title: { fontSize: 16, fontWeight: '800', color: colors.text, paddingRight: 40, lineHeight: 21 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, paddingRight: 40 },
+  logo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  titleCol: { flex: 1 },
+  title: { fontSize: 16, fontWeight: '800', color: colors.text, lineHeight: 21 },
   company: { marginTop: 3, fontSize: 13, fontWeight: '600', color: colors.textMuted },
   highlights: { marginTop: spacing.md, gap: 4 },
   highlight: { fontSize: 13, color: colors.textMuted },
