@@ -43,9 +43,11 @@ duplicating.
 ### Data / Supabase
 - Defaults to the **production Vizag Jobs** Supabase project
   (`fbyyfyhdglcpkhxskffj`, same as jobsinvizag.in / web `VITE_SUPABASE_*`).
-  Override with `EXPO_PUBLIC_SUPABASE_URL` + `EXPO_PUBLIC_SUPABASE_ANON_KEY` in
-  `.env` if needed. On fetch failure the app falls back to bundled sample jobs
-  (`src/data/sampleJobs.ts`).
+  `app.config.js` + `src/lib/supabaseCredentials.ts` ignore README placeholders
+  like `<anon-key>` so a bad `.env` cannot override production. Use
+  `npm run build:apk` to produce a sideloadable APK with env + JS embedded.
+  On fetch failure the app falls back to bundled sample jobs
+  (`src/data/sampleJobs.ts`) and shows a retry banner.
 
 ### Gotcha
 - Metro caches transform errors: if you see a parse/syntax error whose code

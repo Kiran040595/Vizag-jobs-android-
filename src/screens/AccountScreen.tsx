@@ -128,7 +128,8 @@ export default function AccountScreen({ navigation }: Props) {
         {!isSupabaseConfigured ? (
           <View style={styles.banner}>
             <Text style={styles.bannerText}>
-              Live auth needs Supabase credentials. Browsing jobs still works with sample data.
+              Supabase credentials are missing. Job browsing may use sample data until the app is
+              rebuilt with production settings.
             </Text>
           </View>
         ) : null}

@@ -8,6 +8,11 @@ cd "$ROOT"
 echo "==> Installing npm dependencies"
 npm install
 
+if [[ ! -f .env ]]; then
+  echo "==> Creating .env from .env.example (production Vizag Jobs Supabase)"
+  cp .env.example .env
+fi
+
 echo "==> Configuring Android SDK"
 bash scripts/setup-android-sdk.sh
 

@@ -122,21 +122,25 @@ export interface FetchResult {
 
 export const fetchJobs = async (): Promise<FetchResult> => {
   if (!isSupabaseConfigured || !supabase) {
-    return { jobs: SAMPLE_JOBS, usingSampleData: true };
+    return {
+      jobs: SAMPLE_JOBS,
+      usingSampleData: true,
+      error: 'Supabase is not configured',
+    };
   }
 
   try {
     const rows = await fetchJobsPaginated();
     const jobs = rows.map((row, index) => processJobData(row, index));
-    if (jobs.length === 0) {
-      return { jobs: SAMPLE_JOBS, usingSampleData: true };
-    }
+    // Empty live result is still "live" — do not silently swap in sample jobs,
+    // which made sideloaded APKs look like they were stuck on dummy data.
     return { jobs, usingSampleData: false };
   } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to load jobs';
     return {
       jobs: SAMPLE_JOBS,
       usingSampleData: true,
-      error: err instanceof Error ? err.message : 'Failed to load jobs',
+      error: message,
     };
   }
 };
