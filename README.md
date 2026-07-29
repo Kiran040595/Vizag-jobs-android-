@@ -24,7 +24,10 @@ logic.
 - On-platform **Apply** for internal jobs, with cover note + resume
 - **Applied jobs** status tracking (`job_applications`)
 - Jobs for you (profile-based matching), freshness filters, pagination
-- Share jobs, similar jobs, Q&A, reply notifications, site feedback
+- Share jobs, similar jobs, Q&A (including guest ask), reply notifications, site feedback
+- Deep links to job detail (`/jobs/...`, `/job/...`) + in-app notification navigation
+- Structured job descriptions, source attribution, expired-listing handling
+- Pull-to-refresh on Jobs / Saved / Applied
 - External apply channel prompt + post-apply group link
 - Bottom tabs: Jobs · Saved · Account
 - Employer / admin: open on the website (jobsinvizag.in)

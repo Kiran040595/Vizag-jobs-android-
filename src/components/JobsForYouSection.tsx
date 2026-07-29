@@ -1,22 +1,23 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { Job } from '../types';
+import type { RankedJob } from '../lib/studentJobMatch';
 import { colors, radius, spacing } from '../theme';
 
 type Props = {
-  jobs: Job[];
+  rankedJobs: RankedJob[];
   onOpenJob: (job: Job) => void;
 };
 
-export default function JobsForYouSection({ jobs, onOpenJob }: Props) {
-  if (!jobs.length) return null;
+export default function JobsForYouSection({ rankedJobs, onOpenJob }: Props) {
+  if (!rankedJobs.length) return null;
 
   return (
     <View style={styles.wrap}>
       <Text style={styles.title}>Jobs for you</Text>
       <Text style={styles.subtitle}>Matched from your profile preferences and skills.</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        {jobs.map((job) => (
+        {rankedJobs.map(({ job, reasons }) => (
           <Pressable
             key={job.id}
             style={styles.card}
@@ -29,6 +30,15 @@ export default function JobsForYouSection({ jobs, onOpenJob }: Props) {
             <Text style={styles.cardMeta} numberOfLines={1}>
               {[job.company, job.location].filter(Boolean).join(' · ')}
             </Text>
+            {reasons.length ? (
+              <View style={styles.reasons}>
+                {reasons.slice(0, 2).map((reason) => (
+                  <View key={reason} style={styles.reasonChip}>
+                    <Text style={styles.reasonText}>{reason}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </Pressable>
         ))}
       </ScrollView>
@@ -62,4 +72,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 14, fontWeight: '800', color: colors.text, minHeight: 36 },
   cardMeta: { marginTop: spacing.sm, fontSize: 12, color: colors.textMuted },
+  reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: spacing.sm },
+  reasonChip: {
+    backgroundColor: colors.blueSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  reasonText: { fontSize: 10, fontWeight: '700', color: colors.primaryDark },
 });
