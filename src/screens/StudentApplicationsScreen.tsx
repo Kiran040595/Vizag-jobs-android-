@@ -1,5 +1,13 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useStudentAuth } from '../context/StudentAuthContext';
@@ -20,12 +28,29 @@ import { colors, radius, spacing } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StudentApplications'>;
 
-export default function StudentApplicationsScreen({ navigation }: Props) {
+export default function StudentApplicationsScreen({ navigation, route }: Props) {
   const { isStudent } = useStudentAuth();
+  const highlightApplicationId = route.params?.highlightApplicationId;
   const [applications, setApplications] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  const loadApplications = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    if (mode === 'refresh') setRefreshing(true);
+    else setLoading(true);
+    try {
+      const rows = await fetchMyApplications();
+      setApplications(rows);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load applications.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,25 +60,14 @@ export default function StudentApplicationsScreen({ navigation }: Props) {
       }
 
       let active = true;
-      setLoading(true);
-      fetchMyApplications()
-        .then((rows) => {
-          if (!active) return;
-          setApplications(rows);
-          setError('');
-        })
-        .catch((err) => {
-          if (!active) return;
-          setError(err instanceof Error ? err.message : 'Could not load applications.');
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
+      void loadApplications('initial').then(() => {
+        if (!active) return;
+      });
 
       return () => {
         active = false;
       };
-    }, [isStudent, navigation]),
+    }, [isStudent, navigation, loadApplications]),
   );
 
   const filtered = useMemo(() => {
@@ -109,6 +123,13 @@ export default function StudentApplicationsScreen({ navigation }: Props) {
           data={filtered}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void loadApplications('refresh')}
+              tintColor={colors.primary}
+            />
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>
@@ -131,8 +152,23 @@ export default function StudentApplicationsScreen({ navigation }: Props) {
           }
           renderItem={({ item }) => {
             const statusColors = getApplicationStatusColors(item.status);
+            const jobKey = item.job?.id || item.job?.slug;
+            const highlighted = highlightApplicationId === item.id;
+            const statusUpdated =
+              item.updatedAt &&
+              item.submittedAt &&
+              item.updatedAt !== item.submittedAt;
             return (
-              <View style={styles.card}>
+              <Pressable
+                style={[styles.card, highlighted && styles.cardHighlight]}
+                onPress={() => {
+                  if (jobKey) {
+                    navigation.navigate('JobDetails', { jobId: jobKey });
+                  }
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`View job posting for ${item.job?.title || 'job'}`}
+              >
                 <View style={styles.cardTop}>
                   <View style={styles.cardText}>
                     <Text style={styles.jobTitle}>{item.job?.title || 'Job'}</Text>
@@ -140,6 +176,11 @@ export default function StudentApplicationsScreen({ navigation }: Props) {
                       <Text style={styles.company}>{item.job.company}</Text>
                     ) : null}
                     <Text style={styles.meta}>Applied {formatApplicationTime(item.submittedAt)}</Text>
+                    {statusUpdated ? (
+                      <Text style={styles.meta}>
+                        Status updated {formatApplicationTime(item.updatedAt)}
+                      </Text>
+                    ) : null}
                   </View>
                   <View
                     style={[
@@ -155,7 +196,8 @@ export default function StudentApplicationsScreen({ navigation }: Props) {
                 <Text style={styles.description}>
                   {getApplicationStatusDescription(item.status)}
                 </Text>
-              </View>
+                {jobKey ? <Text style={styles.viewJob}>View job posting →</Text> : null}
+              </Pressable>
             );
           }}
         />
@@ -188,6 +230,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     marginBottom: spacing.md,
   },
+  cardHighlight: { borderColor: colors.primary, backgroundColor: colors.blueSoft },
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
   cardText: { flex: 1 },
   jobTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
@@ -200,18 +243,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     alignSelf: 'flex-start',
   },
-  statusText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
-  description: {
-    marginTop: spacing.md,
-    backgroundColor: colors.bg,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    color: colors.textMuted,
-    lineHeight: 20,
-  },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { marginTop: spacing.md, color: colors.textMuted },
-  empty: { alignItems: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg },
+  statusText: { fontSize: 11, fontWeight: '800' },
+  description: { marginTop: spacing.md, color: colors.textMuted, lineHeight: 20, fontSize: 13 },
+  viewJob: { marginTop: spacing.md, color: colors.primary, fontWeight: '800', fontSize: 13 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  loadingText: { color: colors.textMuted },
+  empty: { alignItems: 'center', paddingTop: spacing.xxl, paddingHorizontal: spacing.lg },
   emptyTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
   emptyBody: {
     marginTop: spacing.sm,
@@ -223,18 +260,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     backgroundColor: colors.primary,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
   primaryText: { color: colors.white, fontWeight: '800' },
   error: {
-    margin: spacing.lg,
-    backgroundColor: '#fff1f2',
-    borderColor: '#fecdd3',
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: spacing.md,
     color: '#be123c',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     fontWeight: '600',
   },
 });

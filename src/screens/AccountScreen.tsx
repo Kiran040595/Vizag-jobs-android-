@@ -20,6 +20,7 @@ import {
   replyNotificationKindLabel,
   type ReplyNotification,
 } from '../services/replyNotifications';
+import { parseJobRouteIdentifier, parseQuestionIdFromPath } from '../lib/parseJobRouteIdentifier';
 import { colors, radius, spacing } from '../theme';
 
 type Props = CompositeScreenProps<
@@ -28,6 +29,7 @@ type Props = CompositeScreenProps<
 >;
 
 const LEGAL_LINKS = [
+  { label: 'Contact', url: 'https://jobsinvizag.in/contact' },
   { label: 'About Vizag Jobs', url: 'https://jobsinvizag.in/about' },
   { label: 'Privacy policy', url: 'https://jobsinvizag.in/privacy-policy' },
   { label: 'Terms of service', url: 'https://jobsinvizag.in/terms-of-service' },
@@ -98,10 +100,29 @@ export default function AccountScreen({ navigation }: Props) {
         // ignore mark-read failures
       }
     }
+
     if (item.kind === 'application_status') {
-      navigation.navigate('StudentApplications');
+      navigation.navigate('StudentApplications', {
+        highlightApplicationId: item.refId || undefined,
+      });
       return;
     }
+
+    if (item.kind === 'site_feedback') {
+      navigation.navigate('Feedback');
+      return;
+    }
+
+    if (item.kind === 'job_question' || item.linkPath) {
+      const path = item.linkPath || '';
+      const jobId = parseJobRouteIdentifier(path) || item.refId || '';
+      const questionId = parseQuestionIdFromPath(path);
+      if (jobId) {
+        navigation.navigate('JobDetails', { jobId, questionId });
+        return;
+      }
+    }
+
     if (item.linkPath) {
       const url = item.linkPath.startsWith('http')
         ? item.linkPath

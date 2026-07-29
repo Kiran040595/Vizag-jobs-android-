@@ -3,10 +3,16 @@ import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer, DefaultTheme, type LinkingOptions } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  getStateFromPath as getStateFromPathDefault,
+  type LinkingOptions,
+} from '@react-navigation/native';
 import { colors } from './src/theme';
 import { StudentAuthProvider } from './src/context/StudentAuthContext';
 import { handleAuthDeepLink } from './src/lib/authDeepLink';
+import { parseJobRouteIdentifier } from './src/lib/parseJobRouteIdentifier';
 import RootNavigator from './src/navigation/RootNavigator';
 import type { RootStackParamList } from './src/navigation/types';
 
@@ -16,7 +22,12 @@ const navTheme = {
 };
 
 const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [Linking.createURL('/'), 'vizagjobs://'],
+  prefixes: [
+    Linking.createURL('/'),
+    'vizagjobs://',
+    'https://jobsinvizag.in',
+    'https://www.jobsinvizag.in',
+  ],
   config: {
     screens: {
       MainTabs: {
@@ -26,6 +37,7 @@ const linking: LinkingOptions<RootStackParamList> = {
           Account: 'account',
         },
       },
+      JobDetails: 'job/:jobId',
       StudentLogin: 'student/login',
       StudentRegister: 'student/register',
       StudentForgotPassword: 'student/forgot-password',
@@ -35,6 +47,19 @@ const linking: LinkingOptions<RootStackParamList> = {
       StudentApply: 'student/apply/:jobId',
       Feedback: 'feedback',
     },
+  },
+  getStateFromPath(path, options) {
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    const jobId = parseJobRouteIdentifier(normalized.split('?')[0] || normalized);
+    if (jobId) {
+      return {
+        routes: [
+          { name: 'MainTabs' },
+          { name: 'JobDetails', params: { jobId } },
+        ],
+      };
+    }
+    return getStateFromPathDefault(path, options);
   },
 };
 

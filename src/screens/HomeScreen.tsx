@@ -1,5 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+} from 'react-native';
 import { useFocusEffect, type CompositeScreenProps } from '@react-navigation/native';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,7 +26,7 @@ import {
 } from '../lib/jobFilters';
 import { FILTER_CATEGORY_OPTIONS, normalizeJobCategory } from '../data/categories';
 import { getSavedJobIds, toggleSavedJob } from '../lib/savedJobs';
-import { rankJobsForStudent } from '../lib/studentJobMatch';
+import { rankJobsForStudent, type RankedJob } from '../lib/studentJobMatch';
 import { useStudentAuth } from '../context/StudentAuthContext';
 import HeroSection from '../components/HeroSection';
 import CategoryChips from '../components/CategoryChips';
@@ -68,6 +76,7 @@ export default function HomeScreen({ navigation }: Props) {
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -89,6 +98,16 @@ export default function HomeScreen({ navigation }: Props) {
     setReloadToken((n) => n + 1);
   }, []);
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchJobs()
+      .then((result) => {
+        setAllJobs(result.jobs);
+        setUsingSample(result.usingSampleData);
+      })
+      .finally(() => setRefreshing(false));
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let active = true;
@@ -106,9 +125,9 @@ export default function HomeScreen({ navigation }: Props) {
   const safePage = Math.min(page, totalPages);
   const pageJobs = useMemo(() => paginate(filtered, safePage), [filtered, safePage]);
   const stats = useMemo(() => computeStats(allJobs), [allJobs]);
-  const jobsForYou = useMemo(() => {
+  const jobsForYou = useMemo((): RankedJob[] => {
     if (!isStudent || !profileComplete || !profile) return [];
-    return rankJobsForStudent(allJobs, profile).map((entry) => entry.job);
+    return rankJobsForStudent(allJobs, profile);
   }, [allJobs, isStudent, profile, profileComplete]);
 
   const onToggleSave = useCallback(async (job: Job) => {
@@ -163,8 +182,8 @@ export default function HomeScreen({ navigation }: Props) {
       ) : null}
       {jobsForYou.length ? (
         <JobsForYouSection
-          jobs={jobsForYou}
-          onOpenJob={(job) => navigation.navigate('JobDetails', { job })}
+          rankedJobs={jobsForYou}
+          onOpenJob={(job) => navigation.navigate('JobDetails', { job, jobId: job.id })}
         />
       ) : null}
       <Text style={styles.sectionTitle}>Quick browse</Text>
@@ -249,11 +268,18 @@ export default function HomeScreen({ navigation }: Props) {
       <FlatList
         data={loading ? [] : pageJobs}
         keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
         renderItem={({ item }) => (
           <JobCard
             job={item}
             saved={savedIds.includes(item.id)}
-            onPress={() => navigation.navigate('JobDetails', { job: item })}
+            onPress={() => navigation.navigate('JobDetails', { job: item, jobId: item.id })}
             onToggleSave={() => onToggleSave(item)}
           />
         )}
