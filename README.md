@@ -27,7 +27,15 @@ logic.
 - Share jobs, similar jobs, Q&A, reply notifications, site feedback
 - External apply channel prompt + post-apply group link
 - Bottom tabs: Jobs · Saved · Account
-- Employer / admin: open on the website (jobsinvizag.in)
+
+## Features (v3 — employer + admin mobile portals)
+
+- Employer registration, sign-in, password reset, and company profile management
+- Submit and edit jobs for admin review, with internal or external apply modes
+- Track job approval status and applicant counts
+- Review applicant contact details and resumes, then update application status
+- Admin mobile review queue to approve or reject employer-submitted jobs
+- Admin access to job applications; the full CMS remains available on the web
 
 Data comes from the same Supabase `jobs` project as
 [jobsinvizag.in](https://jobsinvizag.in). Credentials default to that production

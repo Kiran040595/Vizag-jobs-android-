@@ -1,9 +1,14 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Linking } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 import { colors, radius, spacing } from '../theme';
 
 export default function EmployerCTA() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   return (
     <View style={styles.wrap}>
       <View style={styles.card}>
@@ -14,7 +19,7 @@ export default function EmployerCTA() {
         </Text>
         <Pressable
           style={styles.btn}
-          onPress={() => Linking.openURL('https://jobsinvizag.in/employer/register')}
+          onPress={() => navigation.navigate('EmployerRegister')}
           accessibilityRole="button"
           accessibilityLabel="Post a Job"
         >

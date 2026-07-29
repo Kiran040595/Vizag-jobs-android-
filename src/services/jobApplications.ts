@@ -6,7 +6,7 @@ import {
 } from '../lib/applicationStatus';
 import type { ResumeFileLike } from '../lib/studentResumeFile';
 import { fetchStudentProfile } from './studentJobs';
-import { saveResumePathOnProfile, uploadStudentResume } from './studentResume';
+import { createResumeSignedUrl, saveResumePathOnProfile, uploadStudentResume } from './studentResume';
 
 const APPLICATION_COLUMNS = `
   id,
@@ -140,6 +140,47 @@ export const fetchMyApplications = async (): Promise<JobApplication[]> => {
   return (data || []).map((row) => mapApplication(row as Record<string, unknown>)!).filter(Boolean);
 };
 
+export const fetchJobApplications = async (jobId: string): Promise<JobApplication[]> => {
+  if (!isSupabaseConfigured || !supabase || !jobId) return [];
+
+  const { data, error } = await supabase
+    .from('job_applications')
+    .select(APPLICATION_COLUMNS)
+    .eq('job_id', jobId)
+    .order('submitted_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []).map((row) => mapApplication(row as Record<string, unknown>)!).filter(Boolean);
+};
+
+export type JobApplicationStats = {
+  total: number;
+  byJobId: Record<string, number>;
+  byStatus: Record<string, number>;
+};
+
+export const fetchJobApplicationStats = async (
+  jobIds: string[] = [],
+): Promise<JobApplicationStats> => {
+  const empty: JobApplicationStats = { total: 0, byJobId: {}, byStatus: {} };
+  if (!isSupabaseConfigured || !supabase || jobIds.length === 0) return empty;
+
+  const { data, error } = await supabase
+    .from('job_applications')
+    .select('job_id, status')
+    .in('job_id', jobIds);
+  if (error) throw new Error(error.message);
+
+  return (data || []).reduce<JobApplicationStats>((stats, row) => {
+    const jobId = String(row.job_id);
+    const status = String(normalizeApplicationStatus(row.status));
+    stats.total += 1;
+    stats.byJobId[jobId] = (stats.byJobId[jobId] || 0) + 1;
+    stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+    return stats;
+  }, empty);
+};
+
 export const submitJobApplication = async ({
   jobId,
   coverNote,
@@ -203,6 +244,35 @@ export const submitJobApplication = async ({
   return mapApplication(data as Record<string, unknown>)!;
 };
 
+export const updateApplicationStatus = async ({
+  applicationId,
+  status,
+}: {
+  applicationId: string;
+  status: string;
+}): Promise<JobApplication> => {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Supabase is not configured.');
+  }
+  const normalizedStatus = String(normalizeApplicationStatus(status));
+  if (!APPLICATION_STATUSES_SET.has(normalizedStatus)) {
+    throw new Error('Invalid application status.');
+  }
+
+  const { data, error } = await supabase
+    .from('job_applications')
+    .update({ status: normalizedStatus })
+    .eq('id', applicationId)
+    .select(APPLICATION_COLUMNS)
+    .single();
+  if (error) throw new Error(error.message);
+  return mapApplication(data as Record<string, unknown>)!;
+};
+
+export const getApplicationResumeUrl = async (
+  application: JobApplication | null | undefined,
+): Promise<string> => createResumeSignedUrl(application?.resumePath || '');
+
 export { formatApplicationStatus };
 
 export const formatApplicationTime = (value: string | null | undefined): string => {
@@ -218,4 +288,4 @@ export const formatApplicationTime = (value: string | null | undefined): string 
   });
 };
 
-export const APPLICATION_STATUSES_SET = new Set(APPLICATION_STATUSES);
+export const APPLICATION_STATUSES_SET = new Set<string>(APPLICATION_STATUSES);
