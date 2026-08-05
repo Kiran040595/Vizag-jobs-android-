@@ -11,10 +11,13 @@ import {
 } from '@react-navigation/native';
 import { colors } from './src/theme';
 import { StudentAuthProvider } from './src/context/StudentAuthContext';
+import { EmployerAuthProvider } from './src/context/EmployerAuthContext';
+import { AdminAuthProvider } from './src/context/AdminAuthContext';
 import { handleAuthDeepLink } from './src/lib/authDeepLink';
 import { parseJobDeepLinkPath } from './src/lib/jobDeepLink';
 import RootNavigator from './src/navigation/RootNavigator';
 import type { RootStackParamList } from './src/navigation/types';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 
 const navTheme = {
   ...DefaultTheme,
@@ -38,6 +41,19 @@ const linkingConfig: LinkingOptions<RootStackParamList>['config'] = {
     StudentProfile: 'student/profile',
     StudentApplications: 'student/applied-jobs',
     StudentApply: 'student/apply/:jobId',
+    EmployerLogin: 'employer/login',
+    EmployerRegister: 'employer/register',
+    EmployerForgotPassword: 'employer/forgot-password',
+    EmployerResetPassword: 'employer/reset-password',
+    EmployerHome: 'employer/home',
+    EmployerProfile: 'employer/profile',
+    EmployerJobs: 'employer/jobs',
+    EmployerJobForm: 'employer/jobs/form/:jobId?',
+    EmployerJobApplications: 'employer/jobs/:jobId/applications',
+    AdminLogin: 'admin/login',
+    AdminHome: 'admin/home',
+    AdminJobApplications: 'admin/jobs/:jobId/applications',
+    JobAlerts: 'job-alerts',
     Feedback: 'feedback',
     BlogList: 'blog',
     BlogPost: 'blog/:slug',
@@ -70,6 +86,11 @@ const linking: LinkingOptions<RootStackParamList> = {
   },
 };
 
+function PushBootstrap() {
+  usePushNotifications();
+  return null;
+}
+
 export default function App() {
   const handledUrl = useRef<string | null>(null);
 
@@ -90,10 +111,15 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <StudentAuthProvider>
-        <NavigationContainer theme={navTheme} linking={linking}>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </NavigationContainer>
+        <EmployerAuthProvider>
+          <AdminAuthProvider>
+            <PushBootstrap />
+            <NavigationContainer theme={navTheme} linking={linking}>
+              <StatusBar style="light" />
+              <RootNavigator />
+            </NavigationContainer>
+          </AdminAuthProvider>
+        </EmployerAuthProvider>
       </StudentAuthProvider>
     </SafeAreaProvider>
   );

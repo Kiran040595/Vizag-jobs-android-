@@ -109,8 +109,23 @@ export default function AccountScreen({ navigation }: Props) {
     }
   };
 
-  const legalLinks = (
+  const portalAndLegalLinks = (
     <>
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('JobAlerts')}>
+        <Text style={styles.menuTitle}>Job alerts</Text>
+        <Text style={styles.menuBody}>Email + push alerts for categories you care about</Text>
+      </Pressable>
+
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('EmployerLogin')}>
+        <Text style={styles.menuTitle}>Employer portal</Text>
+        <Text style={styles.menuBody}>Post jobs and review applicants in the app</Text>
+      </Pressable>
+
+      <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('AdminLogin')}>
+        <Text style={styles.menuTitle}>Admin login</Text>
+        <Text style={styles.menuBody}>Review employer-submitted jobs</Text>
+      </Pressable>
+
       <Pressable style={styles.menuBtn} onPress={() => navigation.navigate('BlogList')}>
         <Text style={styles.menuTitle}>Blog</Text>
         <Text style={styles.menuBody}>Career tips and Vizag job news</Text>
@@ -125,13 +140,6 @@ export default function AccountScreen({ navigation }: Props) {
           <Text style={styles.linkText}>{item.label}</Text>
         </Pressable>
       ))}
-
-      <Pressable
-        style={styles.linkRow}
-        onPress={() => openExternalUrl('https://jobsinvizag.in/employer/login')}
-      >
-        <Text style={styles.linkText}>Employer portal (website)</Text>
-      </Pressable>
     </>
   );
 
@@ -180,7 +188,7 @@ export default function AccountScreen({ navigation }: Props) {
           <Text style={styles.menuBody}>Report a problem or suggest an improvement</Text>
         </Pressable>
 
-        {legalLinks}
+        {portalAndLegalLinks}
       </ScrollView>
     );
   }
@@ -254,7 +262,7 @@ export default function AccountScreen({ navigation }: Props) {
         ))
       )}
 
-      {legalLinks}
+      {portalAndLegalLinks}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
