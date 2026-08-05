@@ -2,7 +2,7 @@
   "expo": {
     "name": "Vizag Jobs",
     "slug": "vizag-jobs",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,6 +18,7 @@
     },
     "android": {
       "package": "com.jobsinvizag.app",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#0f2557",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -25,6 +26,10 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.INTERNET"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -60,7 +65,15 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2563eb",
+          "defaultChannel": "default"
+        }
+      ]
     ]
   }
 }

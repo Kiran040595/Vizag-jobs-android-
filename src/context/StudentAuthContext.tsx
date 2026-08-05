@@ -8,6 +8,7 @@ import { validateStudentConsents, type StudentConsents } from '../lib/studentCon
 import { validateStudentProfilePayload, type StudentProfileInput } from '../lib/studentProfileValidation';
 import { recordStudentRegistrationConsents } from '../services/studentConsent';
 import { upsertStudentProfile } from '../services/studentJobs';
+import { syncSavedJobsFromCloud } from '../lib/savedJobs';
 
 const STUDENT_ACCESS_CACHE_TTL_MS = 15 * 60 * 1000;
 const STUDENT_ACCESS_CACHE_KEY = 'vizagjobs:student-access-cache';
@@ -182,6 +183,9 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
           access.profile,
           access.profileComplete,
         );
+        if (access.isStudent) {
+          void syncSavedJobsFromCloud();
+        }
       } catch (error) {
         if (!isMounted) return;
         applyAccess({ isStudent: false, profile: null, mappedProfile: null, profileComplete: false });
